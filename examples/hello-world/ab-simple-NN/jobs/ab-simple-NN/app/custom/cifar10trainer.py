@@ -20,6 +20,7 @@ from simple_network import SimpleNetwork
 from torch import nn
 from torch.optim import SGD
 from torch.utils.data.dataloader import DataLoader
+from torch.utils.data import random_split
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import Compose, Normalize, ToTensor
 
@@ -80,9 +81,25 @@ class Cifar10Trainer(Executor):
                 Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
             ]
         )
-        self._train_dataset = CIFAR10(root=data_path, transform=transforms, download=True, train=True)
+        self._train_dataset = CIFAR10(root=data_path, transform=transforms, download=False, train=True)
+
+        # Calculate the size for each split
+        total_size = len(self._train_dataset)
+        first_split_size = total_size // 2
+        second_split_size = total_size - first_split_size
+
+        # Split the dataset
+        first_split_dataset, second_split_dataset = random_split(self._train_dataset, [first_split_size, second_split_size])
+        is_first_client = "site-1" in os.path.abspath(__file__)
+        print(f"The initialization is running from this folder: {os.path.abspath(__file__)} and the value of is_first_client is: {is_first_client}")
+        self._train_dataset = first_split_dataset if is_first_client else second_split_dataset
+
+        # self._train_dataset.data.shape = (50000, 32, 32, 3), where there are 50000 images, each of size 32x32x3.
         self._train_loader = DataLoader(self._train_dataset, batch_size=4, shuffle=True)
-        self._n_iterations = len(self._train_loader)
+        self._n_iterations = len(self._train_loader) # number of iterations = 12500 = 50000 / 4
+        print(f"Number of iterations: {self._n_iterations}")
+        print(f"Shape of the whole dataset: {self._train_dataset.dataset.data.shape}")
+        print(f"Number of samples from the whole data: {len(self._train_dataset.indices)} = Number of iterations ({self._n_iterations}) * batch size ({4})")
 
         # Setup the persistence manager to save PT model.
         # The default training configuration is used by persistence manager
