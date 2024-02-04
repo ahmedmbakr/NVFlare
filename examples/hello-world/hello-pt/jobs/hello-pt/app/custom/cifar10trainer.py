@@ -92,7 +92,13 @@ class Cifar10Trainer(Executor):
             data=self.model.state_dict(), default_train_conf=self._default_train_conf
         )
 
+        # AB: Note that the data is downloaded on my local machine in the path: "~/data", and it is shared between all the clients.
+        print(f"Cifar10Trainer initialized: This is the path of the data: {data_path}") # AB: This was just to make sure that print statements will be displayed in the output. It is displayed in the CMD, but not in the log files, which is expected.
+
     def execute(self, task_name: str, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal) -> Shareable:
+        # Print the path of the executing file.
+        # AB: This will be printed in the CMD and the log files for 
+        self.log_info(fl_ctx, f"Executing file: {os.path.abspath(__file__)}")
         try:
             if task_name == self._pre_train_task_name:
                 # Get the new state dict and send as weights
