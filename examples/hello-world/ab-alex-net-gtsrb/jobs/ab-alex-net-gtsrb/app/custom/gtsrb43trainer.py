@@ -39,9 +39,13 @@ from nvflare.app_opt.pt.model_persistence_format_manager import PTModelPersisten
 class Gtsrb43Trainer(Executor):
     def __init__(
         self,
-        data_path="~/data/gtsrb/GTSRB",
+        data_path="~/data",
         lr=0.01,
-        epochs=5,
+        epochs=1,
+        num_classes = 43,
+        batch_size = 32,
+        train_val_split = 0.8,
+        random_seed = 42,
         train_task_name=AppConstants.TASK_TRAIN,
         submit_model_task_name=AppConstants.TASK_SUBMIT_MODEL,
         exclude_vars=None,
@@ -58,13 +62,16 @@ class Gtsrb43Trainer(Executor):
             submit_model_task_name (str, optional): Task name for submit model. Defaults to "submit_model".
             exclude_vars (list): List of variables to exclude during model loading.
             pre_train_task_name: Task name for pre train task, i.e., sending initial model weights.
+            train_val_split: This is the percentage of the data that will be used for the training. The rest will be used for the validation.
         """
         super().__init__()
 
         # AB: Parameters
-        num_classes = 43
-        batch_size = 64
+        
         users_split = 2 # AB: This is the number of clients that will be used for the training. It is set to 2, so that the data will be split between two clients.
+        torch.manual_seed(random_seed) # AB: This is to make sure that the training and the validation data are split in the same way for all the clients.
+
+        
 
         self._lr = lr
         self._epochs = epochs
@@ -72,6 +79,8 @@ class Gtsrb43Trainer(Executor):
         self._pre_train_task_name = pre_train_task_name
         self._submit_model_task_name = submit_model_task_name
         self._exclude_vars = exclude_vars
+
+        print(f"Number of classes: {num_classes}, Learning rate: {lr}, Number of epochs: {epochs}, Batch size: {batch_size}, Train validation split: {train_val_split}, Users split: {users_split}, data path: {data_path}")
 
         # Training setup
         self.model = AlexnetTS(num_classes)
@@ -88,7 +97,13 @@ class Gtsrb43Trainer(Executor):
             ]
         )
         train_data_path = os.path.join(data_path, "Training")
-        self._train_dataset = torchvision.datasets.ImageFolder(root = train_data_path, transform = transforms)
+        self._dataset = torchvision.datasets.ImageFolder(root = train_data_path, transform = transforms)
+
+        n_train_examples = int(len(self._dataset) * train_val_split)
+        n_val_examples = len(self._dataset) - n_train_examples
+
+        self._train_dataset, _ = random_split(self._dataset, [n_train_examples, n_val_examples]) # AB: validation dataset will not be used in this class
+
 
         # Calculate the size for each split
         total_size = len(self._train_dataset)

@@ -16,7 +16,9 @@ import torch
 from alex_net_network import AlexnetTS
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
+from torch.utils.data import random_split
 from torchvision.transforms import Compose, Normalize, ToTensor, Resize
+import torchvision
 
 from nvflare.apis.dxo import DXO, DataKind, from_shareable
 from nvflare.apis.executor import Executor
@@ -26,15 +28,18 @@ from nvflare.apis.shareable import Shareable, make_reply
 from nvflare.apis.signal import Signal
 from nvflare.app_common.app_constant import AppConstants
 
+import os
+
 
 class Gtsrb43Validator(Executor):
-    def __init__(self, data_path="~/data/gtsrb/GTSRB", validate_task_name=AppConstants.TASK_VALIDATION):
+    def __init__(self, data_path="~/data", num_classes = 43,
+        batch_size = 32, train_val_split = 0.8, random_seed = 42, validate_task_name=AppConstants.TASK_VALIDATION):
         super().__init__()
 
         # AB: Parameters
-        num_classes = 43
-        batch_size = 64
+        
         users_split = 2 # AB: This is the number of clients that will be used for the training. It is set to 2, so that the data will be split between two clients.
+        torch.manual_seed(random_seed) # AB: This is to make sure that the training and the validation data are split in the same way for all the clients.
 
         self._validate_task_name = validate_task_name
 
@@ -50,8 +55,29 @@ class Gtsrb43Validator(Executor):
                 ToTensor()
             ]
         )
-        test_data = CIFAR10(root=data_path, train=False, transform=transforms)
-        self._test_loader = DataLoader(test_data, batch_size=4, shuffle=False)
+        train_data_path = os.path.join(data_path, "Training")
+        self._dataset = torchvision.datasets.ImageFolder(root = train_data_path, transform = transforms)
+
+        n_train_examples = int(len(self._dataset) * train_val_split)
+        n_val_examples = len(self._dataset) - n_train_examples
+
+        _, self._val_dataset = random_split(self._dataset, [n_train_examples, n_val_examples]) # AB: training dataset will not be used in this class
+        
+        # Calculate the size for each split
+        total_size = len(self._val_dataset)
+        first_split_size = total_size // users_split
+        second_split_size = total_size - first_split_size
+
+        # Split the dataset
+        first_split_dataset, second_split_dataset = random_split(self._val_dataset, [first_split_size, second_split_size])
+        is_first_client = "site-1" in os.path.abspath(__file__)
+        print(f"The initialization is running from this folder: {os.path.abspath(__file__)} and the value of is_first_client is: {is_first_client}")
+        self._val_dataset = first_split_dataset if is_first_client else second_split_dataset
+
+        self._test_loader = DataLoader(self._val_dataset, batch_size=batch_size, shuffle=True)
+
+
+        # self._test_loader = DataLoader(test_data, batch_size=4, shuffle=False)
 
     def execute(self, task_name: str, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal) -> Shareable:
         if task_name == self._validate_task_name:
