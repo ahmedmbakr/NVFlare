@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import torch
-from simple_network import SimpleNetwork
+from simple_network import AlexnetTS
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import Compose, Normalize, ToTensor
@@ -34,7 +34,8 @@ class Cifar10Validator(Executor):
         self._validate_task_name = validate_task_name
 
         # Setup the model
-        self.model = SimpleNetwork()
+        num_classes = 43
+        self.model = AlexnetTS(num_classes)
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.model.to(self.device)
 

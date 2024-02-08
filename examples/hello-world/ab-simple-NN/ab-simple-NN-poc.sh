@@ -1,5 +1,5 @@
 source ~/NVFlare/examples/hello-world/nvflare_example/bin/activate
-nvflare poc prepare -n 2 -y
+nvflare poc prepare -n 2
 cd ~/NVFlare/examples/hello-world
 cp -r ab-simple-NN/jobs/ab-simple-NN/ /tmp/nvflare/poc/example_project/prod_00/admin@nvidia.com/transfer/
 nvflare poc start

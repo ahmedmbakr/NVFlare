@@ -16,13 +16,14 @@ import os.path
 
 import torch
 from pt_constants import PTConstants
-from simple_network import SimpleNetwork
+from simple_network import AlexnetTS
 from torch import nn
 from torch.optim import SGD
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data import random_split
-from torchvision.datasets import CIFAR10
-from torchvision.transforms import Compose, Normalize, ToTensor
+from torchvision.datasets import GTSRB
+from torchvision.transforms import Compose, Normalize, ToTensor, Resize
+import torchvision
 
 from nvflare.apis.dxo import DXO, DataKind, MetaKey, from_shareable
 from nvflare.apis.executor import Executor
@@ -38,7 +39,7 @@ from nvflare.app_opt.pt.model_persistence_format_manager import PTModelPersisten
 class Cifar10Trainer(Executor):
     def __init__(
         self,
-        data_path="~/data",
+        data_path="~/data/gtsrb/GTSRB",
         lr=0.01,
         epochs=5,
         train_task_name=AppConstants.TASK_TRAIN,
@@ -60,6 +61,11 @@ class Cifar10Trainer(Executor):
         """
         super().__init__()
 
+        # AB: Parameters
+        num_classes = 43
+        batch_size = 4
+        users_split = 2 # AB: This is the number of clients that will be used for the training. It is set to 2, so that the data will be split between two clients.
+
         self._lr = lr
         self._epochs = epochs
         self._train_task_name = train_task_name
@@ -68,7 +74,7 @@ class Cifar10Trainer(Executor):
         self._exclude_vars = exclude_vars
 
         # Training setup
-        self.model = SimpleNetwork()
+        self.model = AlexnetTS(num_classes)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.loss = nn.CrossEntropyLoss()
@@ -77,15 +83,17 @@ class Cifar10Trainer(Executor):
         # Create Cifar10 dataset for training.
         transforms = Compose(
             [
-                ToTensor(),
-                Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                Resize([112, 112]),
+                ToTensor()
             ]
         )
-        self._train_dataset = CIFAR10(root=data_path, transform=transforms, download=False, train=True)
+        # self._train_dataset = GTSRB(root=data_path, transform=transforms, download=True, split="train")
+        train_data_path = os.path.join(data_path, "Training")
+        self._train_dataset = torchvision.datasets.ImageFolder(root = train_data_path, transform = transforms)
 
         # Calculate the size for each split
         total_size = len(self._train_dataset)
-        first_split_size = total_size // 2
+        first_split_size = total_size // users_split
         second_split_size = total_size - first_split_size
 
         # Split the dataset
@@ -94,12 +102,11 @@ class Cifar10Trainer(Executor):
         print(f"The initialization is running from this folder: {os.path.abspath(__file__)} and the value of is_first_client is: {is_first_client}")
         self._train_dataset = first_split_dataset if is_first_client else second_split_dataset
 
-        # self._train_dataset.data.shape = (50000, 32, 32, 3), where there are 50000 images, each of size 32x32x3.
-        self._train_loader = DataLoader(self._train_dataset, batch_size=4, shuffle=True)
-        self._n_iterations = len(self._train_loader) # number of iterations = 12500 = 50000 / 4
+        self._train_loader = DataLoader(self._train_dataset, batch_size=batch_size, shuffle=True)
+        self._n_iterations = len(self._train_loader)
         print(f"Number of iterations: {self._n_iterations}")
-        print(f"Shape of the whole dataset: {self._train_dataset.dataset.data.shape}")
-        print(f"Number of samples from the whole data: {len(self._train_dataset.indices)} = Number of iterations ({self._n_iterations}) * batch size ({4})")
+        # print(f"Shape of the whole dataset: {self._train_dataset.dataset.data.shape}")
+        print(f"Number of samples from the whole data: {len(self._train_dataset.indices)} = Number of iterations ({self._n_iterations}) * batch size ({batch_size})")
 
         # Setup the persistence manager to save PT model.
         # The default training configuration is used by persistence manager
