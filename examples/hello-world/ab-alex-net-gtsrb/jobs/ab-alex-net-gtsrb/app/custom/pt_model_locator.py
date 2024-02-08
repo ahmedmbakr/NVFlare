@@ -17,7 +17,7 @@ from typing import List, Union
 
 import torch.cuda
 from pt_constants import PTConstants
-from simple_network import AlexnetTS
+from alex_net_network import AlexnetTS
 
 from nvflare.apis.dxo import DXO
 from nvflare.apis.fl_context import FLContext

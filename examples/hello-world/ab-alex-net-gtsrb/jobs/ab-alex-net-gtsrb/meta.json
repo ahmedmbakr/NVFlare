@@ -1,5 +1,5 @@
 {
-  "name": "ab-simple-NN",
+  "name": "ab-alex-net-gtsrb",
   "resource_spec": {},
   "min_clients" : 2,
   "deploy_map": {

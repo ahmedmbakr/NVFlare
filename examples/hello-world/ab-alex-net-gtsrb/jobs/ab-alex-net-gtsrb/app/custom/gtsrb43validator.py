@@ -13,10 +13,10 @@
 # limitations under the License.
 
 import torch
-from simple_network import AlexnetTS
+from alex_net_network import AlexnetTS
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
-from torchvision.transforms import Compose, Normalize, ToTensor
+from torchvision.transforms import Compose, Normalize, ToTensor, Resize
 
 from nvflare.apis.dxo import DXO, DataKind, from_shareable
 from nvflare.apis.executor import Executor
@@ -27,14 +27,18 @@ from nvflare.apis.signal import Signal
 from nvflare.app_common.app_constant import AppConstants
 
 
-class Cifar10Validator(Executor):
-    def __init__(self, data_path="~/data", validate_task_name=AppConstants.TASK_VALIDATION):
+class Gtsrb43Validator(Executor):
+    def __init__(self, data_path="~/data/gtsrb/GTSRB", validate_task_name=AppConstants.TASK_VALIDATION):
         super().__init__()
+
+        # AB: Parameters
+        num_classes = 43
+        batch_size = 64
+        users_split = 2 # AB: This is the number of clients that will be used for the training. It is set to 2, so that the data will be split between two clients.
 
         self._validate_task_name = validate_task_name
 
         # Setup the model
-        num_classes = 43
         self.model = AlexnetTS(num_classes)
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.model.to(self.device)
@@ -42,8 +46,8 @@ class Cifar10Validator(Executor):
         # Preparing the dataset for testing.
         transforms = Compose(
             [
-                ToTensor(),
-                Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                Resize([112, 112]),
+                ToTensor()
             ]
         )
         test_data = CIFAR10(root=data_path, train=False, transform=transforms)

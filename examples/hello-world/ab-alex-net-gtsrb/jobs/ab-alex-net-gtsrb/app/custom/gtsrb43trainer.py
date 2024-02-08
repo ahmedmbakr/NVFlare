@@ -16,7 +16,7 @@ import os.path
 
 import torch
 from pt_constants import PTConstants
-from simple_network import AlexnetTS
+from alex_net_network import AlexnetTS
 from torch import nn
 from torch.optim import SGD
 from torch.utils.data.dataloader import DataLoader
@@ -36,7 +36,7 @@ from nvflare.app_common.app_constant import AppConstants
 from nvflare.app_opt.pt.model_persistence_format_manager import PTModelPersistenceFormatManager
 
 
-class Cifar10Trainer(Executor):
+class Gtsrb43Trainer(Executor):
     def __init__(
         self,
         data_path="~/data/gtsrb/GTSRB",
@@ -63,7 +63,7 @@ class Cifar10Trainer(Executor):
 
         # AB: Parameters
         num_classes = 43
-        batch_size = 4
+        batch_size = 64
         users_split = 2 # AB: This is the number of clients that will be used for the training. It is set to 2, so that the data will be split between two clients.
 
         self._lr = lr
@@ -87,7 +87,6 @@ class Cifar10Trainer(Executor):
                 ToTensor()
             ]
         )
-        # self._train_dataset = GTSRB(root=data_path, transform=transforms, download=True, split="train")
         train_data_path = os.path.join(data_path, "Training")
         self._train_dataset = torchvision.datasets.ImageFolder(root = train_data_path, transform = transforms)
 
@@ -117,7 +116,7 @@ class Cifar10Trainer(Executor):
         )
 
         # AB: Note that the data is downloaded on my local machine in the path: "~/data", and it is shared between all the clients.
-        print(f"Cifar10Trainer initialized: This is the path of the data: {data_path}") # AB: This was just to make sure that print statements will be displayed in the output. It is displayed in the CMD, but not in the log files, which is expected.
+        print(f"Gtsrb43Trainer initialized: This is the path of the data: {data_path}") # AB: This was just to make sure that print statements will be displayed in the output. It is displayed in the CMD, but not in the log files, which is expected.
 
     def execute(self, task_name: str, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal) -> Shareable:
         # Print the path of the executing file.

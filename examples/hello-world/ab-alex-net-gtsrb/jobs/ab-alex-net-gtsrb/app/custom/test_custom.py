@@ -16,8 +16,8 @@
 from unittest.mock import patch
 
 import pytest
-from cifar10trainer import Cifar10Trainer
-from cifar10validator import Cifar10Validator
+from gtsrb43trainer import Gtsrb43Trainer
+from gtsrb43validator import Gtsrb43Validator
 
 from nvflare.apis.dxo import DXO, DataKind
 from nvflare.apis.fl_constant import ReturnCode
@@ -29,9 +29,9 @@ TRAIN_TASK_NAME = "train"
 
 @pytest.fixture()
 def get_cifar_trainer():
-    with patch.object(Cifar10Trainer, "_save_local_model") as mock_save:
-        with patch.object(Cifar10Trainer, "_load_local_model") as mock_load:
-            yield Cifar10Trainer(train_task_name=TRAIN_TASK_NAME, epochs=1)
+    with patch.object(Gtsrb43Trainer, "_save_local_model") as mock_save:
+        with patch.object(Gtsrb43Trainer, "_load_local_model") as mock_load:
+            yield Gtsrb43Trainer(train_task_name=TRAIN_TASK_NAME, epochs=1)
 
 
 class TestCifar10Trainer:
@@ -48,11 +48,11 @@ class TestCifar10Trainer:
             result = trainer.execute(TRAIN_TASK_NAME, shareable=result, fl_ctx=FLContext(), abort_signal=Signal())
             assert result.get_return_code() == ReturnCode.OK
 
-    @patch.object(Cifar10Trainer, "_save_local_model")
-    @patch.object(Cifar10Trainer, "_load_local_model")
+    @patch.object(Gtsrb43Trainer, "_save_local_model")
+    @patch.object(Gtsrb43Trainer, "_load_local_model")
     def test_execute_rounds(self, mock_save, mock_load):
         train_task_name = "train"
-        trainer = Cifar10Trainer(train_task_name=train_task_name, epochs=2)
+        trainer = Gtsrb43Trainer(train_task_name=train_task_name, epochs=2)
         # just take first batch
         myitt = iter(trainer._train_loader)
         trainer._train_loader = [next(myitt)]
@@ -67,7 +67,7 @@ class TestCifar10Trainer:
 class TestCifar10Validator:
     def test_execute(self):
         validate_task_name = "validate"
-        validator = Cifar10Validator(validate_task_name=validate_task_name)
+        validator = Gtsrb43Validator(validate_task_name=validate_task_name)
         # just take first batch
         iterator = iter(validator._test_loader)
         validator._test_loader = [next(iterator)]
