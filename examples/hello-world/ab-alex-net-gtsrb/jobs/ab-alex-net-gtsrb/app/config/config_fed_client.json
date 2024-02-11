@@ -1,19 +1,22 @@
 {
   "format_version": 2,
-
+  "datasetpath": "~/data/gtsrb/GTSRB",
+  "num_classes": 43,
+  "train_val_split" : 0.8,
+  "random_seed": 42,
   "executors": [
     {
       "tasks": ["train", "submit_model", "get_weights"],
       "executor": {
         "path": "gtsrb43trainer.Gtsrb43Trainer",
         "args": {
-          "data_path": "~/data/gtsrb/GTSRB",
+          "data_path": "{datasetpath}",
           "lr": 0.01,
           "epochs": 1,
-          "num_classes": 43,
+          "num_classes": "{num_classes}",
           "batch_size": 64,
-          "train_val_split": 0.8,
-          "random_seed": 42
+          "train_val_split": "{train_val_split}",
+          "random_seed": "{random_seed}"
         }
       }
     },
@@ -22,11 +25,11 @@
       "executor": {
         "path": "gtsrb43validator.Gtsrb43Validator",
         "args": {
-          "data_path": "~/data/gtsrb/GTSRB",
-          "num_classes": 43,
+          "data_path": "{datasetpath}",
+          "num_classes": "{num_classes}",
           "batch_size": 64,
-          "train_val_split": 0.8,
-          "random_seed": 42
+          "train_val_split": "{train_val_split}",
+          "random_seed": "{random_seed}"
         }
       }
     }

@@ -309,7 +309,7 @@ class NLPLearner(Learner):
         for name in global_weights:
             if name not in local_weights:
                 continue
-            model_diff[name] = np.subtract(local_weights[name].cpu().numpy(), global_weights[name], dtype=np.float32)
+            model_diff[name] = np.subtract(local_weights[name].cpu().numpy(), global_weights[name], dtype=np.float32) # AB: Why are we returning the model_diff not just the new weights?
             if np.any(np.isnan(model_diff[name])):
                 self.system_panic(f"{name} weights became NaN...", fl_ctx)
                 return make_reply(ReturnCode.EXECUTION_EXCEPTION)
