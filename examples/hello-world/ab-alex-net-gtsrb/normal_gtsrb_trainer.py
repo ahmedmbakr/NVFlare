@@ -105,9 +105,7 @@ class GTSRB:
     
     # Function to perform training of the model
     def local_train(self, validate=True, save_graphs_after_each_epoch=False):
-        train_loss_list = [0] * self._epochs
-        val_acc_list = [0] * self._epochs
-        trackers = {"train_loss": train_loss_list, "val_acc": val_acc_list}
+        trackers = {"train_loss": [], "val_acc": []}
         # Basic training
         self.model.train()
         for epoch in range(self._epochs):
@@ -127,14 +125,15 @@ class GTSRB:
                 #     print(f"Epoch: {epoch}/{self._epochs}, Iteration: {i}, " f"Loss: {(running_loss/3000)}")
                 #     running_loss = 0.0
                     # Write this model to the disk
-            trackers['train_loss'][epoch] = running_loss / len(self._train_loader)
+            epoch_loss = running_loss / len(self._train_loader)
+            trackers['train_loss'].append(epoch_loss)
             print(f"Epoch: {epoch}/{self._epochs} ended, Loss: {trackers['train_loss'][epoch]}, Time: {(time.monotonic() - train_start_time):.2f} seconds")
             torch.save(self.model.state_dict(), self.model_save_path) # AB: Save the model to the disk after each epoch
             if validate:
                 val_start_time = time.monotonic()
-                trackers['val_acc'][epoch] = self.validate(self._validate_loader)
+                trackers['val_acc'].append(self.validate(self._validate_loader))
                 val_time = time.monotonic() - val_start_time
-                print(f"Validation accuracy (correct / total validation images): {(trackers['val_acc'][epoch])}, Time: {val_time:.2f} seconds")
+                print(f"Validation accuracy (correct / total validation images): {(trackers['val_acc'][epoch] * 100):.2f}%, Time: {val_time:.2f} seconds")
             pickle.dump(trackers, open(self.train_trackers_filename, 'wb')) # AB: Save the training trackers to the disk after each epoch
             if save_graphs_after_each_epoch:
                 self.display_train_trackers()
@@ -165,6 +164,7 @@ class GTSRB:
         trackers = pickle.load(open(self.train_trackers_filename, 'rb'))
         # print(trackers)
         # Display train loss graph.
+        plt.figure() # New graph
         plt.plot(trackers['train_loss'])
         plt.xlabel('Epochs')
         plt.ylabel('Train loss')
@@ -183,7 +183,7 @@ class GTSRB:
 
 if __name__ == "__main__":
     gtsrb = GTSRB(  lr=0.01,
-                    epochs=2,
+                    epochs=100,
                     batch_size = 128,
                     train_val_split = 0.8,
                     load_model_from_disk = False)
