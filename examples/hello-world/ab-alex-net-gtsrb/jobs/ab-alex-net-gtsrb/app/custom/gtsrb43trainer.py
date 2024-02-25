@@ -39,7 +39,7 @@ from nvflare.app_opt.pt.model_persistence_format_manager import PTModelPersisten
 class Gtsrb43Trainer(Executor):
     def __init__(
         self,
-        data_path="~/data",
+        data_path="../../../data",
         lr=0.01,
         epochs=1,
         num_classes = 43,
@@ -67,11 +67,10 @@ class Gtsrb43Trainer(Executor):
         super().__init__()
 
         # AB: Parameters
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        data_path = os.path.abspath(os.path.join(dir_path, data_path)) # AB: This is to make sure that the path is correct.
         
-        users_split = 2 # AB: This is the number of clients that will be used for the training. It is set to 2, so that the data will be split between two clients.
         torch.manual_seed(random_seed) # AB: This is to make sure that the training and the validation data are split in the same way for all the clients.
-
-        
 
         self._lr = lr
         self._epochs = epochs
@@ -80,7 +79,7 @@ class Gtsrb43Trainer(Executor):
         self._submit_model_task_name = submit_model_task_name
         self._exclude_vars = exclude_vars
 
-        print(f"Number of classes: {num_classes}, Learning rate: {lr}, Number of epochs: {epochs}, Batch size: {batch_size}, Train validation split: {train_val_split}, Users split: {users_split}, data path: {data_path}")
+        print(f"Number of classes: {num_classes}, Learning rate: {lr}, Number of epochs: {epochs}, Batch size: {batch_size}, Train validation split: {train_val_split}, data path: {data_path}")
 
         # Training setup
         self.model = AlexnetTS(num_classes)
@@ -96,7 +95,7 @@ class Gtsrb43Trainer(Executor):
                 ToTensor()
             ]
         )
-        train_data_path = os.path.join(data_path, "Training")
+        train_data_path = data_path # AB: This is the path to the data for this client.
         self._dataset = torchvision.datasets.ImageFolder(root = train_data_path, transform = transforms)
 
         n_train_examples = int(len(self._dataset) * train_val_split)
@@ -105,16 +104,8 @@ class Gtsrb43Trainer(Executor):
         self._train_dataset, _ = random_split(self._dataset, [n_train_examples, n_val_examples]) # AB: validation dataset will not be used in this class
 
 
-        # Calculate the size for each split
-        total_size = len(self._train_dataset)
-        first_split_size = total_size // users_split
-        second_split_size = total_size - first_split_size
-
         # Split the dataset
-        first_split_dataset, second_split_dataset = random_split(self._train_dataset, [first_split_size, second_split_size])
-        is_first_client = "site-1" in os.path.abspath(__file__)
-        print(f"The initialization is running from this folder: {os.path.abspath(__file__)} and the value of is_first_client is: {is_first_client}")
-        self._train_dataset = first_split_dataset if is_first_client else second_split_dataset
+        print(f"The initialization is running from this folder: {os.path.abspath(__file__)}")
 
         self._train_loader = DataLoader(self._train_dataset, batch_size=batch_size, shuffle=True)
         self._n_iterations = len(self._train_loader)

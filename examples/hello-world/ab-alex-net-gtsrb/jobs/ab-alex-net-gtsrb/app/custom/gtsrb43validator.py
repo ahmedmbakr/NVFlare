@@ -37,8 +37,9 @@ class Gtsrb43Validator(Executor):
         super().__init__()
 
         # AB: Parameters
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        data_path = os.path.abspath(os.path.join(dir_path, data_path)) # AB: This is to make sure that the path is correct.
         
-        users_split = 2 # AB: This is the number of clients that will be used for the training. It is set to 2, so that the data will be split between two clients.
         torch.manual_seed(random_seed) # AB: This is to make sure that the training and the validation data are split in the same way for all the clients.
 
         self._validate_task_name = validate_task_name
@@ -55,27 +56,18 @@ class Gtsrb43Validator(Executor):
                 ToTensor()
             ]
         )
-        train_data_path = os.path.join(data_path, "Training")
+        train_data_path = data_path # AB: This is the path to the data for this client.
         self._dataset = torchvision.datasets.ImageFolder(root = train_data_path, transform = transforms)
 
         n_train_examples = int(len(self._dataset) * train_val_split)
         n_val_examples = len(self._dataset) - n_train_examples
 
         _, self._val_dataset = random_split(self._dataset, [n_train_examples, n_val_examples]) # AB: training dataset will not be used in this class
-        
-        # Calculate the size for each split
-        total_size = len(self._val_dataset)
-        first_split_size = total_size // users_split
-        second_split_size = total_size - first_split_size
 
         # Split the dataset
-        first_split_dataset, second_split_dataset = random_split(self._val_dataset, [first_split_size, second_split_size])
-        is_first_client = "site-1" in os.path.abspath(__file__)
-        print(f"The initialization is running from this folder: {os.path.abspath(__file__)} and the value of is_first_client is: {is_first_client}")
-        self._val_dataset = first_split_dataset if is_first_client else second_split_dataset
+        print(f"The initialization is running from this folder: {os.path.abspath(__file__)}")
 
         self._test_loader = DataLoader(self._val_dataset, batch_size=batch_size, shuffle=True)
-
 
         # self._test_loader = DataLoader(test_data, batch_size=4, shuffle=False)
 

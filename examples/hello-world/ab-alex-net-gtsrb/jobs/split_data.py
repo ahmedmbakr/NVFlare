@@ -11,12 +11,12 @@ def split_data(data_path, num_clients, output_path):
         num_clients: The number of clients to split the data between.
         output_path: The path to the output folder.
     """
-    client_folder_pattern = output_path + "/client_{}"
+    client_folder_pattern = output_path + "/site-{}/data"
 
-    if os.path.exists(output_path):
-        # Remove the output directory if it exists.
-        shutil.rmtree(output_path)
-    for i in range(num_clients):
+    # if os.path.exists(output_path):
+    #     # Remove the output directory if it exists.
+    #     shutil.rmtree(output_path)
+    for i in range(1, num_clients + 1):
         client_path = client_folder_pattern.format(i)
         os.makedirs(client_path, exist_ok=True)
     
@@ -31,7 +31,7 @@ def split_data(data_path, num_clients, output_path):
         for i in range(num_clients):
             start = i * num_files // num_clients
             end = (i + 1) * num_files // num_clients
-            output_folder_path = client_folder_pattern.format(i) + "/" + class_dir
+            output_folder_path = client_folder_pattern.format(i + 1) + "/" + class_dir
             os.makedirs(output_folder_path, exist_ok=True)
             for j in range(start, end):
                 # Copy the file to the client folder.
@@ -47,7 +47,8 @@ if __name__ == "__main__":
     # Split the training data between multiple clients.
     num_clients = 2
     data_path = "../data/gtsrb/GTSRB/Training"
-    output_path = "../data/gtsrb/GTSRB/Federated_training"
+    # output_path = "../data/gtsrb/GTSRB/Federated_training"
+    output_path = "/tmp/nvflare/poc/example_project/prod_00/"
     random_seed = 42
 
     random.seed(random_seed)
