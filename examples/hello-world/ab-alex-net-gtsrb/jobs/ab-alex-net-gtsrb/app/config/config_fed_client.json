@@ -4,6 +4,7 @@
   "num_classes": 43,
   "train_val_split" : 0.8,
   "random_seed": 42,
+  "batch_size": 128,
   "executors": [
     {
       "tasks": ["train", "submit_model", "get_weights"],
@@ -12,9 +13,9 @@
         "args": {
           "data_path": "{datasetpath}",
           "lr": 0.01,
-          "epochs": 10,
+          "epochs": 3,
           "num_classes": "{num_classes}",
-          "batch_size": 128,
+          "batch_size": "{batch_size}",
           "train_val_split": "{train_val_split}",
           "random_seed": "{random_seed}"
         }
@@ -25,9 +26,9 @@
       "executor": {
         "path": "gtsrb43validator.Gtsrb43Validator",
         "args": {
-          "data_path": "{datasetpath}",
+          "data_path": "~/data/gtsrb/GTSRB",
           "num_classes": "{num_classes}",
-          "batch_size": 128,
+          "batch_size": "{batch_size}",
           "train_val_split": "{train_val_split}",
           "random_seed": "{random_seed}"
         }

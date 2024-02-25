@@ -101,13 +101,14 @@ class Gtsrb43Trainer(Executor):
         n_train_examples = int(len(self._dataset) * train_val_split)
         n_val_examples = len(self._dataset) - n_train_examples
 
-        self._train_dataset, _ = random_split(self._dataset, [n_train_examples, n_val_examples]) # AB: validation dataset will not be used in this class
+        self._train_dataset, self._val_dataset = random_split(self._dataset, [n_train_examples, n_val_examples]) 
 
 
         # Split the dataset
         print(f"The initialization is running from this folder: {os.path.abspath(__file__)}")
 
         self._train_loader = DataLoader(self._train_dataset, batch_size=batch_size, shuffle=True)
+        self._validate_loader = DataLoader(self._val_dataset, batch_size=batch_size, shuffle=False)
         self._n_iterations = len(self._train_loader)
         print(f"Number of iterations: {self._n_iterations}")
         # print(f"Shape of the whole dataset: {self._train_dataset.dataset.data.shape}")
@@ -123,6 +124,8 @@ class Gtsrb43Trainer(Executor):
 
         # AB: Note that the data is downloaded on my local machine in the path: "~/data", and it is shared between all the clients.
         print(f"Gtsrb43Trainer initialized: This is the path of the data: {data_path}") # AB: This was just to make sure that print statements will be displayed in the output. It is displayed in the CMD, but not in the log files, which is expected.
+
+        self.__num_times_to_call_trainer = 0 # AB: This variable is incremented every time the train function is called.
 
     def execute(self, task_name: str, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal) -> Shareable:
         # Print the path of the executing file.
@@ -181,9 +184,13 @@ class Gtsrb43Trainer(Executor):
         )
         return outgoing_dxo.to_shareable()
 
-    def _local_train(self, fl_ctx, weights, abort_signal):
+    def _local_train(self, fl_ctx, weights, abort_signal, validate_enabled=True):
+        self.__num_times_to_call_trainer += 1
+
         # Set the model weights
         self.model.load_state_dict(state_dict=weights)
+
+        trackers = {"train_loss": [], "val_acc": []}
 
         # Basic training
         self.model.train()
@@ -204,11 +211,70 @@ class Gtsrb43Trainer(Executor):
                 self.optimizer.step()
 
                 running_loss += cost.cpu().detach().numpy() / images.size()[0]
-                if i % 3000 == 0:
-                    self.log_info(
-                        fl_ctx, f"Epoch: {epoch}/{self._epochs}, Iteration: {i}, " f"Loss: {running_loss/3000}"
-                    )
-                    running_loss = 0.0
+                # if i % 3000 == 0:
+                #     self.log_info(
+                #         fl_ctx, f"Epoch: {epoch}/{self._epochs}, Iteration: {i}, " f"Loss: {running_loss/3000}"
+                #     )
+                #     running_loss = 0.0
+            epoch_loss = running_loss / len(self._train_loader)
+            self.log_info(
+                        fl_ctx, f"AB: Epoch: {epoch}/{self._epochs}, Iteration: {i}, " f"Loss: {epoch_loss}")
+            trackers['train_loss'].append(epoch_loss)
+            if validate_enabled:
+                trackers['val_acc'].append(self._validate(self._validate_loader, fl_ctx))
+                self.log_info(fl_ctx, f"AB: Validation accuracy (correct / total validation images): {(trackers['val_acc'][epoch] * 100):.2f}%")
+                self.display_train_trackers(trackers, fl_ctx)
+
+    def _validate(self, loader, fl_ctx):
+        """
+        Validate the model on the given loader (validate or test).
+        """
+        self.model.eval()
+
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for i, (images, labels) in enumerate(loader):
+                images, labels = images.to(self.device), labels.to(self.device)
+                output = self.model(images)
+
+                _, pred_label = torch.max(output, 1)
+
+                correct += (pred_label == labels).sum().item()
+                total += images.size()[0]
+            self.log_info(fl_ctx, f"AB: Correct: {correct}, not Correct: {total - correct}, Total: {total}")
+            metric = correct / float(total)
+
+        return metric
+
+    def display_train_trackers(self, trackers, fl_ctx):
+        import pickle
+        import matplotlib.pyplot as plt
+        import os
+
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        outputs_dir = os.path.abspath(os.path.join(dir_path, '../outputs'))
+        if not os.path.exists(outputs_dir):
+            os.makedirs(outputs_dir)
+        
+        # print(trackers)
+        # Display train loss graph.
+        plt.figure() # New graph
+        plt.plot(trackers['train_loss'])
+        plt.xlabel('Epochs')
+        plt.ylabel('Train loss')
+        plt.title('Train loss vs Epochs')
+        # Save the graph to the disk
+        plt.savefig(os.path.abspath(os.path.join(outputs_dir, f'normal_train_loss_{self.__num_times_to_call_trainer}.png')))
+
+        # Display validation accuracy graph.
+        plt.figure() # New graph
+        plt.plot(trackers['val_acc'])
+        plt.xlabel('Epochs')
+        plt.ylabel('Validation accuracy')
+        plt.title('Validation accuracy vs Epochs')
+        # Save the graph to the disk
+        plt.savefig(os.path.abspath(os.path.join(outputs_dir, f'normal_val_acc_{self.__num_times_to_call_trainer}.png')))
 
     def _save_local_model(self, fl_ctx: FLContext):
         run_dir = fl_ctx.get_engine().get_workspace().get_run_dir(fl_ctx.get_prop(ReservedKey.RUN_NUM))

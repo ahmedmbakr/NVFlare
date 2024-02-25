@@ -30,6 +30,8 @@ from nvflare.app_common.app_constant import AppConstants
 
 import os
 
+from gtsrb_TestDataLoader import GTSRB_TestDataLoader
+
 
 class Gtsrb43Validator(Executor):
     def __init__(self, data_path="~/data", num_classes = 43,
@@ -37,8 +39,7 @@ class Gtsrb43Validator(Executor):
         super().__init__()
 
         # AB: Parameters
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        data_path = os.path.abspath(os.path.join(dir_path, data_path)) # AB: This is to make sure that the path is correct.
+        data_path = os.path.expanduser(data_path)
         
         torch.manual_seed(random_seed) # AB: This is to make sure that the training and the validation data are split in the same way for all the clients.
 
@@ -56,20 +57,11 @@ class Gtsrb43Validator(Executor):
                 ToTensor()
             ]
         )
-        train_data_path = data_path # AB: This is the path to the data for this client.
-        self._dataset = torchvision.datasets.ImageFolder(root = train_data_path, transform = transforms)
-
-        n_train_examples = int(len(self._dataset) * train_val_split)
-        n_val_examples = len(self._dataset) - n_train_examples
-
-        _, self._val_dataset = random_split(self._dataset, [n_train_examples, n_val_examples]) # AB: training dataset will not be used in this class
+        test_dataset = GTSRB_TestDataLoader(data_path, transform = transforms)
+        self._test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
         # Split the dataset
         print(f"The initialization is running from this folder: {os.path.abspath(__file__)}")
-
-        self._test_loader = DataLoader(self._val_dataset, batch_size=batch_size, shuffle=True)
-
-        # self._test_loader = DataLoader(test_data, batch_size=4, shuffle=False)
 
     def execute(self, task_name: str, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal) -> Shareable:
         if task_name == self._validate_task_name:

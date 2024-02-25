@@ -8,11 +8,15 @@ python examples/hello-world/ab-alex-net-gtsrb/jobs/split_data.py # Split the dat
 cd ~/NVFlare/examples/hello-world
 nvflare poc start
 
+sleep 20 # Sleep for 10 seconds to let the server start
+
 # Run the following from the admin panel
-# submit_job ab-alex-net-gtsrb
+submit_job ab-alex-net-gtsrb
+
+# Check the rest of admin panel commands in the following link: https://nvflare.readthedocs.io/en/main/real_world_fl/operation.html
 
 # After the job finishes, the following commands are run in the adming panel:
 # shutdown client
-# type the username: admin@nvidia.com
+# admin@nvidia.com
 # shutdown server
-# type the username: admin@nvidia.com
+# admin@nvidia.com
