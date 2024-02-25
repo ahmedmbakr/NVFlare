@@ -28,8 +28,7 @@ class GTSRB_TestDataLoader(Dataset):
         csv_row = self.csv_data.iloc[idx, 0].split(';')
         image_name = csv_row[0]
         classId = torch.tensor(int(csv_row[7]))
-        img_path = os.path.join(os.path.abspath('../data/gtsrb/GTSRB'), 'Final_Test/Images', image_name) # TODO: Change this instead of being hardcoded
-        # img_path = os.path.join(self.test_data_dir, 'Final_Test/Images', image_name) # AB: I tried this but it did not work.
+        img_path = os.path.join(self.test_data_dir, 'Final_Test/Images', image_name) # AB: I tried this but it did not work.
         # print(f"Path: {img_path}, exist: {os.path.isfile(img_path)}") # AB: I added this line to see if the path is correct
         img = Image.open(img_path)
 

@@ -193,7 +193,11 @@ class GTSRB:
         plt.savefig(os.path.abspath(os.path.join(dir_path, 'normal_val_acc.png')))
 
 if __name__ == "__main__":
-    gtsrb = GTSRB(  lr=0.01,
+    # Resolve ~ to the home directory
+    data_path = os.path.expanduser("~/data/gtsrb/GTSRB")
+    print(data_path)
+    gtsrb = GTSRB( data_path=data_path,
+                    lr=0.01,
                     epochs=100,
                     batch_size = 128,
                     train_val_split = 0.8,
