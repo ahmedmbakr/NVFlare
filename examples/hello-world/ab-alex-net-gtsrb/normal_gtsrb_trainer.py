@@ -17,6 +17,7 @@ sys.path.append(os.path.abspath(os.path.join(dir_path, 'jobs/ab-alex-net-gtsrb/a
 print(sys.path)
 # import alex_net_network
 from alex_net_network import AlexnetTS
+from gtsrb_TestDataLoader import GTSRB_TestDataLoader
 
 data_path="~/data/gtsrb/GTSRB"
 users_split = 2
@@ -32,7 +33,8 @@ class GTSRB:
         batch_size = 128,
         train_val_split = 0.8,
         random_seed = 42,
-        load_model_from_disk = False
+        load_model_from_disk = False,
+        model_load_path = None
     ):
         """GTSRB Trainer handles train and submit_model tasks. During train_task, it trains a
         simple network on GTSRB dataset. For submit_model task, it sends the locally trained model
@@ -44,6 +46,9 @@ class GTSRB:
             train_task_name (str, optional): Task name for train task. Defaults to "train".
             submit_model_task_name (str, optional): Task name for submit model. Defaults to "submit_model".
             train_val_split: This is the percentage of the data that will be used for the training. The rest will be used for the validation.
+            random_seed: This is the seed that will be used to split the data into training and validation.
+            load_model_from_disk: This is a boolean value that indicates whether the model should be loaded from the disk or not.
+            model_load_path: This is the path of the model that should be loaded from the disk. Only used if load_model_from_disk is True.
         """
         super().__init__()
 
@@ -68,7 +73,8 @@ class GTSRB:
         self.optimizer = SGD(self.model.parameters(), lr=lr, momentum=0.9)
 
         if load_model_from_disk:
-            self.load_model_from_disk()
+            model_path = model_load_path if model_load_path else os.path.abspath(os.path.join(dir_path, "model.pth"))
+            self.load_model_from_disk(model_path)
 
         # Create GTSRB dataset for training.
         transforms = Compose(
@@ -94,13 +100,16 @@ class GTSRB:
         print(f"Gtsrb43Trainer initialized: This is the path of the data: {data_path}")
 
         test_data_path = os.path.join(data_path, "Final_Test")
-        test_dataset = torchvision.datasets.ImageFolder(root = test_data_path, transform = transforms)
+        test_dataset = GTSRB_TestDataLoader(data_path, transform = transforms)
         self.test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-    def load_model_from_disk(self):
-        if os.path.exists("model.pth"):
-            self.model.load_state_dict(torch.load(self.model_save_path))
+    def load_model_from_disk(self, model_path):
+        if os.path.exists(model_path):
+            print(f"Model exists on the disk with the name: {model_path}")
+            self.model.load_state_dict(torch.load(model_path))
             print("Model loaded from disk")
+        else:
+            print(f"Model does not exist on the disk with the name: {model_path}")
 
     
     # Function to perform training of the model
@@ -129,6 +138,8 @@ class GTSRB:
             trackers['train_loss'].append(epoch_loss)
             print(f"Epoch: {epoch}/{self._epochs} ended, Loss: {trackers['train_loss'][epoch]}, Time: {(time.monotonic() - train_start_time):.2f} seconds")
             torch.save(self.model.state_dict(), self.model_save_path) # AB: Save the model to the disk after each epoch
+            if epoch % 10 == 0:
+                torch.save(self.model.state_dict(), os.path.abspath(os.path.join(dir_path, f"model_{epoch}.pth")))
             if validate:
                 val_start_time = time.monotonic()
                 trackers['val_acc'].append(self.validate(self._validate_loader))
@@ -155,7 +166,7 @@ class GTSRB:
 
                 correct += (pred_label == labels).sum().item()
                 total += images.size()[0]
-
+            print(f"Correct: {correct}, not Correct: {total - correct}, Total: {total}")
             metric = correct / float(total)
 
         return metric
@@ -186,7 +197,8 @@ if __name__ == "__main__":
                     epochs=100,
                     batch_size = 128,
                     train_val_split = 0.8,
-                    load_model_from_disk = False)
+                    load_model_from_disk = False, # If True, the model will be loaded from the disk
+                    model_load_path = os.path.abspath(os.path.join(dir_path, "model.pth"))) # The path of the model that should be loaded from the disk if load_model_from_disk is True
 
     gtsrb.local_train(validate=True, save_graphs_after_each_epoch=True) # AB: Training the model
     gtsrb.display_train_trackers() # AB: Display the training trackers
