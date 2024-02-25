@@ -1,15 +1,21 @@
 name: nvflare
 channels:
+  - anaconda
   - pytorch-nightly
   - nvidia
+  - conda-forge
   - defaults
 dependencies:
-  - _libgcc_mutex=0.1=main
-  - _openmp_mutex=5.1=1_gnu
+  - _libgcc_mutex=0.1=conda_forge
+  - _openmp_mutex=4.5=2_gnu
   - blas=1.0=mkl
+  - bottleneck=1.3.7=py39ha9d4c09_0
+  - brotli=1.0.9=h5eee18b_7
+  - brotli-bin=1.0.9=h5eee18b_7
   - bzip2=1.0.8=h7b6447c_0
   - ca-certificates=2023.12.12=h06a4308_0
   - certifi=2024.2.2=py39h06a4308_0
+  - contourpy=1.2.0=py39hdb19cb5_0
   - cuda-cudart=12.1.105=0
   - cuda-cupti=12.1.105=0
   - cuda-libraries=12.1.0=0
@@ -18,44 +24,76 @@ dependencies:
   - cuda-opencl=12.3.101=0
   - cuda-runtime=12.1.0=0
   - cudatoolkit=11.1.74=h6bb024c_0
+  - cycler=0.11.0=pyhd3eb1b0_0
+  - cyrus-sasl=2.1.28=h52b45da_1
+  - dbus=1.13.18=hb2f20db_0
+  - expat=2.5.0=h6a678d5_0
   - ffmpeg=4.2.2=h20bf706_0
   - filelock=3.13.1=py39h06a4308_0
+  - fontconfig=2.14.1=h4c34cd2_2
+  - fonttools=4.25.0=pyhd3eb1b0_0
   - freetype=2.12.1=h4a9f257_0
+  - glib=2.78.4=h6a678d5_0
+  - glib-tools=2.78.4=h6a678d5_0
   - gmp=6.2.1=h295c915_3
   - gmpy2=2.1.2=py39heeb90bb_0
   - gnutls=3.6.15=he1e5248_0
+  - gst-plugins-base=1.14.1=h6a678d5_1
+  - gstreamer=1.14.1=h5eee18b_1
+  - icu=73.1=h6a678d5_0
+  - importlib-resources=6.1.1=pyhd3eb1b0_1
+  - importlib_resources=6.1.1=py39h06a4308_1
   - intel-openmp=2023.1.0=hdb19cb5_46306
   - jinja2=3.1.3=py39h06a4308_0
   - jpeg=9e=h5eee18b_1
+  - kiwisolver=1.4.4=py39h6a678d5_0
+  - krb5=1.20.1=h143b758_1
   - lame=3.100=h7b6447c_0
   - lcms2=2.12=h3be6417_0
   - ld_impl_linux-64=2.38=h1181459_1
   - lerc=3.0=h295c915_0
+  - libbrotlicommon=1.0.9=h5eee18b_7
+  - libbrotlidec=1.0.9=h5eee18b_7
+  - libbrotlienc=1.0.9=h5eee18b_7
+  - libclang13=14.0.6=default_he11475f_1
   - libcublas=12.1.0.26=0
   - libcufft=11.0.2.4=0
   - libcufile=1.8.1.2=0
+  - libcups=2.4.2=h2d74bed_1
   - libcurand=10.3.4.107=0
   - libcusolver=11.4.4.55=0
   - libcusparse=12.0.2.55=0
   - libdeflate=1.17=h5eee18b_1
+  - libedit=3.1.20230828=h5eee18b_0
   - libffi=3.4.4=h6a678d5_0
-  - libgcc-ng=11.2.0=h1234567_1
-  - libgomp=11.2.0=h1234567_1
+  - libgcc-ng=13.2.0=h807b86a_5
+  - libglib=2.78.4=hdc74915_0
+  - libgomp=13.2.0=h807b86a_5
+  - libiconv=1.16=h7f8727e_2
   - libidn2=2.3.4=h5eee18b_0
   - libjpeg-turbo=2.0.0=h9bf148f_0
+  - libllvm14=14.0.6=hdb19cb5_3
   - libnpp=12.0.2.50=0
   - libnvjitlink=12.1.105=0
   - libnvjpeg=12.1.1.14=0
   - libopus=1.3.1=h7b6447c_0
   - libpng=1.6.39=h5eee18b_0
-  - libstdcxx-ng=11.2.0=h1234567_1
+  - libpq=12.17=hdbd6064_0
+  - libstdcxx-ng=13.2.0=h7e041cc_5
   - libtasn1=4.19.0=h5eee18b_0
   - libtiff=4.5.1=h6a678d5_0
   - libunistring=0.9.10=h27cfd23_0
+  - libuuid=1.41.5=h5eee18b_0
   - libvpx=1.7.0=h439df22_0
   - libwebp-base=1.3.2=h5eee18b_0
+  - libxcb=1.15=h7f8727e_0
+  - libxkbcommon=1.0.1=h5eee18b_1
+  - libxml2=2.10.4=hf1b16e4_1
+  - libzlib=1.2.13=hd590300_5
   - llvm-openmp=14.0.6=h9e868ea_0
   - lz4-c=1.9.4=h6a678d5_0
+  - matplotlib=3.8.3=py39hf3d152e_0
+  - matplotlib-base=3.8.3=py39he9076e7_0
   - mkl=2023.1.0=h213fc3f_46344
   - mkl-service=2.4.0=py39h5eee18b_1
   - mkl_fft=1.3.8=py39h5eee18b_0
@@ -63,28 +101,44 @@ dependencies:
   - mpc=1.1.0=h10f8cd9_1
   - mpfr=4.0.2=hb69a4c5_1
   - mpmath=1.3.0=py39h06a4308_0
+  - munkres=1.1.4=py_0
+  - mysql=5.7.24=h721c034_2
   - ncurses=6.4=h6a678d5_0
   - nettle=3.7.3=hbbd107a_1
   - networkx=3.1=py39h06a4308_0
+  - numexpr=2.8.7=py39h85018f9_0
   - numpy=1.26.4=py39h5f9d8c6_0
   - numpy-base=1.26.4=py39hb5e798b_0
   - openh264=2.1.1=h4ff587b_0
   - openjpeg=2.4.0=h3ad879b_0
   - openssl=3.0.13=h7f8727e_0
+  - pandas=2.1.1=py39h1128e8f_0
+  - pcre2=10.42=hebb0a14_0
   - pillow=10.2.0=py39h5eee18b_0
   - pip=23.3.1=py39h06a4308_0
+  - ply=3.11=py39h06a4308_0
+  - pyqt=5.15.10=py39h6a678d5_0
+  - pyqt5-sip=12.13.0=py39h5eee18b_0
   - python=3.9.18=h955ad1f_0
+  - python-dateutil=2.8.2=pyhd3eb1b0_0
+  - python-tzdata=2023.3=pyhd3eb1b0_0
+  - python_abi=3.9=2_cp39
   - pytorch=2.3.0.dev20240225=py3.9_cuda12.1_cudnn8.9.2_0
   - pytorch-cuda=12.1=ha16c6d3_5
   - pytorch-mutex=1.0=cuda
+  - pytz=2023.3.post1=py39h06a4308_0
   - pyyaml=6.0.1=py39h5eee18b_0
+  - qt-main=5.15.2=h53bd1ea_10
   - readline=8.2=h5eee18b_0
   - requests=2.31.0=py39h06a4308_1
   - setuptools=68.2.2=py39h06a4308_0
+  - sip=6.7.12=py39h6a678d5_0
+  - six=1.16.0=pyhd3eb1b0_1
   - sqlite=3.41.2=h5eee18b_0
   - sympy=1.12=py39h06a4308_0
   - tbb=2021.8.0=hdb19cb5_0
-  - tk=8.6.12=h1ccaba5_0
+  - tk=8.6.13=noxft_h4845f30_101
+  - tomli=2.0.1=py39h06a4308_0
   - torchaudio=2.2.0.dev20240225=py39_cu121
   - torchtriton=3.0.0+901819d2b6=py39
   - torchvision=0.18.0.dev20240225=py39_cu121
@@ -94,7 +148,8 @@ dependencies:
   - x264=1!157.20191217=h7b6447c_0
   - xz=5.4.5=h5eee18b_0
   - yaml=0.2.5=h7b6447c_0
-  - zlib=1.2.13=h5eee18b_0
+  - zipp=3.17.0=py39h06a4308_0
+  - zlib=1.2.13=hd590300_5
   - zstd=1.5.5=hc292b87_0
   - pip:
       - absl-py==2.1.0
@@ -127,6 +182,7 @@ dependencies:
       - flask-sqlalchemy==2.5.1
       - flatbuffers==23.5.26
       - fqdn==1.5.1
+      - fsspec==2024.2.0
       - gast==0.5.4
       - google-auth==2.28.1
       - google-auth-oauthlib==1.2.0
@@ -171,6 +227,7 @@ dependencies:
       - nbformat==5.9.2
       - nest-asyncio==1.6.0
       - notebook-shim==0.2.4
+      - nvflare==2.4.0
       - nvflare-nightly==0+untagged.1512.g85ab0e4
       - oauthlib==3.2.2
       - opt-einsum==3.3.0
@@ -193,7 +250,6 @@ dependencies:
       - pyhocon==0.3.60
       - pyjwt==2.8.0
       - pyparsing==3.1.1
-      - python-dateutil==2.8.2
       - python-json-logger==2.0.7
       - pyzmq==25.1.2
       - referencing==0.33.0
@@ -203,7 +259,6 @@ dependencies:
       - rpds-py==0.18.0
       - rsa==4.9
       - send2trash==1.8.2
-      - six==1.16.0
       - sniffio==1.3.0
       - soupsieve==2.5
       - sqlalchemy==1.4.31
@@ -216,7 +271,6 @@ dependencies:
       - termcolor==2.4.0
       - terminado==0.18.0
       - tinycss2==1.2.1
-      - tomli==2.0.1
       - tornado==6.4
       - traitlets==5.14.1
       - types-python-dateutil==2.8.19.20240106
@@ -229,5 +283,4 @@ dependencies:
       - websockets==12.0
       - werkzeug==2.2.2
       - wrapt==1.14.1
-      - zipp==3.17.0
 prefix: /home/bakr/anaconda3/envs/nvflare
