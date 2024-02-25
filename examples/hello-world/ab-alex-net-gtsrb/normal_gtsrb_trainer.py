@@ -196,9 +196,10 @@ if __name__ == "__main__":
     # Resolve ~ to the home directory
     data_path = os.path.expanduser("~/data/gtsrb/GTSRB")
     print(data_path)
+    start_time = time.monotonic()
     gtsrb = GTSRB( data_path=data_path,
                     lr=0.01,
-                    epochs=100,
+                    epochs=40,
                     batch_size = 128,
                     train_val_split = 0.8,
                     load_model_from_disk = False, # If True, the model will be loaded from the disk
@@ -209,3 +210,4 @@ if __name__ == "__main__":
 
     validation_on_test_accuracy = gtsrb.validate(gtsrb.test_loader) * 100 # AB: Final validation on the test data
     print(f"Validation accuracy on test data: {validation_on_test_accuracy:.2f}%")
+    print(f"Total running time: {(time.monotonic() - start_time):.2f} seconds")

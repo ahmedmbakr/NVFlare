@@ -23,7 +23,7 @@ from torch.utils.data.dataloader import DataLoader
 from torch.utils.data import random_split
 from torchvision.datasets import GTSRB
 from torchvision.transforms import Compose, Normalize, ToTensor, Resize
-import torchvision
+import torchvision, pickle
 
 from nvflare.apis.dxo import DXO, DataKind, MetaKey, from_shareable
 from nvflare.apis.executor import Executor
@@ -126,6 +126,8 @@ class Gtsrb43Trainer(Executor):
         print(f"Gtsrb43Trainer initialized: This is the path of the data: {data_path}") # AB: This was just to make sure that print statements will be displayed in the output. It is displayed in the CMD, but not in the log files, which is expected.
 
         self.__num_times_to_call_trainer = 0 # AB: This variable is incremented every time the train function is called.
+        self.overall_trackers = {"train_loss": [], "val_acc": []}
+
 
     def execute(self, task_name: str, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal) -> Shareable:
         # Print the path of the executing file.
@@ -223,7 +225,15 @@ class Gtsrb43Trainer(Executor):
             if validate_enabled:
                 trackers['val_acc'].append(self._validate(self._validate_loader, fl_ctx))
                 self.log_info(fl_ctx, f"AB: Validation accuracy (correct / total validation images): {(trackers['val_acc'][epoch] * 100):.2f}%")
-                self.display_train_trackers(trackers, fl_ctx)
+                self.display_train_trackers(trackers, fl_ctx, is_overall=False)
+                self.overall_trackers['train_loss'].append(epoch_loss)
+                self.overall_trackers['val_acc'].append(trackers['val_acc'][epoch])
+                self.display_train_trackers(self.overall_trackers, fl_ctx, is_overall=True)
+
+                dir_path = os.path.dirname(os.path.realpath(__file__))
+                outputs_dir = os.path.abspath(os.path.join(dir_path, '../outputs'))
+                pickle_file_path = os.path.abspath(os.path.join(outputs_dir, 'overall_trackers.pkl'))
+                pickle.dump(self.overall_trackers, open(pickle_file_path, 'wb')) # AB: Save the training trackers to the disk after each epoch
 
     def _validate(self, loader, fl_ctx):
         """
@@ -247,7 +257,7 @@ class Gtsrb43Trainer(Executor):
 
         return metric
 
-    def display_train_trackers(self, trackers, fl_ctx):
+    def display_train_trackers(self, trackers, fl_ctx, is_overall=False):
         import pickle
         import matplotlib.pyplot as plt
         import os
@@ -265,7 +275,8 @@ class Gtsrb43Trainer(Executor):
         plt.ylabel('Train loss')
         plt.title('Train loss vs Epochs')
         # Save the graph to the disk
-        plt.savefig(os.path.abspath(os.path.join(outputs_dir, f'normal_train_loss_{self.__num_times_to_call_trainer}.png')))
+        save_file_name = 'normal_train_loss_overall.png' if is_overall else f'normal_train_loss_{self.__num_times_to_call_trainer}.png'
+        plt.savefig(os.path.abspath(os.path.join(outputs_dir, save_file_name)))
 
         # Display validation accuracy graph.
         plt.figure() # New graph
@@ -274,7 +285,8 @@ class Gtsrb43Trainer(Executor):
         plt.ylabel('Validation accuracy')
         plt.title('Validation accuracy vs Epochs')
         # Save the graph to the disk
-        plt.savefig(os.path.abspath(os.path.join(outputs_dir, f'normal_val_acc_{self.__num_times_to_call_trainer}.png')))
+        save_file_name = 'normal_val_acc_overall.png' if is_overall else f'normal_val_acc_{self.__num_times_to_call_trainer}.png'
+        plt.savefig(os.path.abspath(os.path.join(outputs_dir, save_file_name)))
 
     def _save_local_model(self, fl_ctx: FLContext):
         run_dir = fl_ctx.get_engine().get_workspace().get_run_dir(fl_ctx.get_prop(ReservedKey.RUN_NUM))
