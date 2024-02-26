@@ -64,7 +64,49 @@ conda deactivate # When you are done using the virtual environment
 Finally, it is assumed that the dataset is downloaded in the following path: `~/data/gtsrb/GTSRB`.
 Now, you are ready to jump to the next section and run the example.
 
-## How to Run
+## Running without NVFlare
+
+In this section, we will discuss how to run the program without NVFlare.
+The python-script: `normal_training.py` is the main script that trains the model.
+
+Now, we will discuss the parameters that can be changed in the script, as shown below in the following code snippet:
+
+```python
+gtsrb = GTSRB(  lr=0.01,
+                    epochs=100,
+                    batch_size = 128,
+                    train_val_split = 0.8,
+                    load_model_from_disk = False, # If True, the model will be loaded from the disk
+                    model_load_path = os.path.abspath(os.path.join(dir_path, "model_99.pth"))) # The path of the model that should be loaded from the disk if load_model_from_disk is True
+```
+
+The model will be trained, the statistics will be printed in the console, and the graphs will be saved in the `ab-alex-net-gtsrb` folder.
+
+```python
+gtsrb.local_train(validate=True, save_graphs_after_each_epoch=True) # AB: Training the model
+    gtsrb.display_train_trackers() # AB: Display the training trackers
+```
+
+The training loss is displayed below.
+
+![alt text](image.png)
+
+Moreover, the validation accuracy is displayed below.
+
+![alt text](image-1.png)
+
+Finally, the model's performance will be tested on the test dataset and the final accuracy is displayed in the console.
+
+```python
+    validation_on_test_accuracy = gtsrb.validate(gtsrb.test_loader) * 100 # AB: Final validation on the test data
+    print(f"Validation accuracy on test data: {validation_on_test_accuracy:.2f}%")
+```
+
+The final achieved accuracy is displayed in the console, as shown below.
+
+![alt text](image-2.png)
+
+## How to Run using NVFlare
 
 To be able to run the program, the dataset has to be downloaded by executing the following script from the CMD.
 In the first line of this bash script, you will find the download folder location, which is set to be `~/data` by default.
@@ -287,44 +329,36 @@ Moreover, since each client has trained on half of the data, the accuracy of the
 
 The runtime of the experiment is 7 minutes.
 
-## Running without NVFlare
+### Fourth experiment
 
-In this section, we will discuss how to run the program without NVFlare.
-The python-script: `normal_training.py` is the main script that trains the model.
+In this experiment, we are going to work with 4 clients.
+Each one will receive 4 training requests from the server.
+In each training process, the client will train the model for 10 epochs.
+The server will aggregate the models after each training process, which means that the server will aggregate the models after 10, 20, 30, and 40 epochs.
+The training loss of client 1, client 2, client 3, and client 4 are shown below, respectively.
 
-Now, we will discuss the parameters that can be changed in the script, as shown below in the following code snippet:
+![alt text](image-16.png)
+![alt text](image-17.png)
+![alt text](image-18.png)
+![alt text](image-19.png)
 
-```python
-gtsrb = GTSRB(  lr=0.01,
-                    epochs=100,
-                    batch_size = 128,
-                    train_val_split = 0.8,
-                    load_model_from_disk = False, # If True, the model will be loaded from the disk
-                    model_load_path = os.path.abspath(os.path.join(dir_path, "model_99.pth"))) # The path of the model that should be loaded from the disk if load_model_from_disk is True
+Moreover, the validation accuracies are reported as follows.
+
+![alt text](image-20.png)
+![alt text](image-21.png)
+![alt text](image-22.png)
+![alt text](image-23.png)
+
+Finally, we will show the final validation accuracies on the test data for client 1.
+
+```bash
+2024-02-26 15:05:31,997 - Gtsrb43Validator - INFO - [identity=site-1, run=241bc3bf-b108-4b12-a96b-0cc1c817285b, peer=example_project, peer_run=241bc3bf-b108-4b12-a96b-0cc1c817285b, task_name=validate, task_id=3d377bcd-2fc4-4ccf-99f3-81e3edbf5c64]: Accuracy when validating SRV_server's model on site-1s data: 0.8904196357878068
+...
+2024-02-26 15:05:49,087 - Gtsrb43Validator - INFO - [identity=site-1, run=241bc3bf-b108-4b12-a96b-0cc1c817285b, peer=example_project, peer_run=241bc3bf-b108-4b12-a96b-0cc1c817285b, task_name=validate, task_id=fab84a15-620b-48d8-ae83-2143278da7fd]: Accuracy when validating site-3's model on site-1s data: 0.8680918448139351
+...
+2024-02-26 15:06:10,783 - Gtsrb43Validator - INFO - [identity=site-1, run=241bc3bf-b108-4b12-a96b-0cc1c817285b, peer=example_project, peer_run=241bc3bf-b108-4b12-a96b-0cc1c817285b, task_name=validate, task_id=5a1db54c-5597-4490-9e5b-101ca3359fca]: Accuracy when validating site-1's model on site-1s data: 0.8758511480601742
+...
+2024-02-26 15:06:30,111 - Gtsrb43Validator - INFO - [identity=site-1, run=241bc3bf-b108-4b12-a96b-0cc1c817285b, peer=example_project, peer_run=241bc3bf-b108-4b12-a96b-0cc1c817285b, task_name=validate, task_id=c10b6125-f14b-4951-9ffb-11293b4f7f62]: Accuracy when validating site-4's model on site-1s data: 0.8752969121140143
+...
+2024-02-26 15:06:48,255 - Gtsrb43Validator - INFO - [identity=site-1, run=241bc3bf-b108-4b12-a96b-0cc1c817285b, peer=example_project, peer_run=241bc3bf-b108-4b12-a96b-0cc1c817285b, task_name=validate, task_id=1db1151a-f6ca-456b-9859-57efc187d6a1]: Accuracy when validating site-2's model on site-1s data: 0.8718923198733175
 ```
-
-The model will be trained, the statistics will be printed in the console, and the graphs will be saved in the `ab-alex-net-gtsrb` folder.
-
-```python
-gtsrb.local_train(validate=True, save_graphs_after_each_epoch=True) # AB: Training the model
-    gtsrb.display_train_trackers() # AB: Display the training trackers
-```
-
-The training loss is displayed below.
-
-![alt text](image.png)
-
-Moreover, the validation accuracy is displayed below.
-
-![alt text](image-1.png)
-
-Finally, the model's performance will be tested on the test dataset and the final accuracy is displayed in the console.
-
-```python
-    validation_on_test_accuracy = gtsrb.validate(gtsrb.test_loader) * 100 # AB: Final validation on the test data
-    print(f"Validation accuracy on test data: {validation_on_test_accuracy:.2f}%")
-```
-
-The final achieved accuracy is displayed in the console, as shown below.
-
-![alt text](image-2.png)
