@@ -121,6 +121,141 @@ Upon the change of the dataset folder from the assumed location, please consider
 "random_seed": 42,
 ```
 
+### First experiment
+
+We will run the program in PoC mode using the following configurations:
+
+First, we change `config_fed_server.json` to have the following configurations:
+
+```json
+{
+    "id": "scatter_and_gather",
+    "name": "ScatterAndGather",
+    "args": {
+        "min_clients" : 2,
+        "num_rounds" : 4,
+        "start_round": 0,
+        "wait_time_after_min_received": 10,
+        "aggregator_id": "aggregator",
+        "persistor_id": "persistor",
+        "shareable_generator_id": "shareable_generator",
+        "train_task_name": "train",
+        "train_timeout": 0
+}
+```
+
+For the clients, the following configurations are considered inside `config_fed_clients.json`:
+
+```json
+  "datasetpath": "../../../data", # Each client has his own dataset.
+  "num_classes": 43,
+  "train_val_split" : 0.8,
+  "batch_size": 128,
+  "executors": [
+    {
+      "executor": {
+        "args": {
+          "data_path": "{datasetpath}",
+          "lr": 0.01,
+          "epochs": 10,
+```
+
+We want to emphasize that we created our own script `jobs/split_data.py` to split the data between different clients.
+Based on the previous configuration, the server waits for at least two clients to be connected and then starts the training process.
+In the training process, the server gives the clients the task to train the model for 10 epochs.
+After the training process is done, the server waits for the clients to send the trained models.
+The server then aggregates the models and sends the aggregated model to the clients to be used in the next round.
+The server repeats this process for 4 rounds.
+Interestingly, the losses of the training at each client side is a little bit higher at 10, 20, 30, and 40 epochs.
+This is because it has got the aggregated model from the server, which is a combination of the models of the clients.
+The screenshot below shows the losses of the training at client 1 and client 2, respectively.
+
+![alt text](image-3.png)
+
+![alt text](image-4.png)
+
+In addition, the following two images show the validation accuracy at each client side in the same order.
+
+![alt text](image-5.png)
+
+![alt text](image-6.png)
+
+The models validation on the test data is done at the end of the training process, i.e., after 40 epochs of training.
+The next screenshots show that the validation has been called three times for each client.
+For example, for client 1, the validation process is called three time on its own test data, assuming that each client has its own test data.
+We want to emphasize that we assumed in this experiment that all clients have the same test data, such as a well known benchmark dataset.
+The first time on the server's model, the second time on its own model, and the third time on client's 2 model.
+The snippet below is from client 1 log file.
+It is obvious that when validating on the server's model, the accuracy is 0.862.
+When validating on its own model, the accuracy is 0.8557.
+When validating on client 2 model, the accuracy is 0.85787.
+<!-- Important Note -->
+I think this is because the server has not propagated the aggregated model after epoch 30, and from epoch 30 to 40, each client updated the last aggregated model (from epoch 30) with its own training data.
+However, the server has received the latest models, after epoch 40 and aggregated them.
+I think at this point, the server has not propagated back the aggregated models to the clients.
+That is why we can find different accuracies when validating on the server's model, the client's own model, and the other client's model. 
+
+```bash
+2024-02-25 15:21:30,948 - Gtsrb43Validator - INFO - [identity=site-1, run=126ad075-27cd-4994-9b3a-5d8fc4dd205c, peer=example_project, peer_run=126ad075-27cd-4994-9b3a-5d8fc4dd205c, task_name=validate, task_id=996c4a83-a304-4661-984b-783b2d44e0ca]: Accuracy when validating SRV_server's model on site-1s data: 0.8623911322248614
+...
+2024-02-25 15:21:40,584 - Gtsrb43Validator - INFO - [identity=site-1, run=126ad075-27cd-4994-9b3a-5d8fc4dd205c, peer=example_project, peer_run=126ad075-27cd-4994-9b3a-5d8fc4dd205c, task_name=validate, task_id=5a7079e6-766d-441c-a08c-5390278dae55]: Accuracy when validating site-1's model on site-1s data: 0.8557403008709422
+...
+2024-02-25 15:21:50,421 - Gtsrb43Validator - INFO - [identity=site-1, run=126ad075-27cd-4994-9b3a-5d8fc4dd205c, peer=example_project, peer_run=126ad075-27cd-4994-9b3a-5d8fc4dd205c, task_name=validate, task_id=1eaf8c31-dcfe-44bf-8372-0aa16e50f477]: Accuracy when validating site-2's model on site-1s data: 0.8578780680918449
+```
+
+Below are the accuracies of the test reported by client 2.
+We got the exact same accuracies as client 1, which is expected since the test data is the same for both clients.
+
+```bash
+2024-02-25 15:21:31,170 - Gtsrb43Validator - INFO - [identity=site-2, run=126ad075-27cd-4994-9b3a-5d8fc4dd205c, peer=example_project, peer_run=126ad075-27cd-4994-9b3a-5d8fc4dd205c, task_name=validate, task_id=08239a4e-6c30-44e4-81bd-b4eef35936bf]: Accuracy when validating SRV_server's model on site-2s data: 0.8623911322248614
+...
+2024-02-25 15:21:40,796 - Gtsrb43Validator - INFO - [identity=site-2, run=126ad075-27cd-4994-9b3a-5d8fc4dd205c, peer=example_project, peer_run=126ad075-27cd-4994-9b3a-5d8fc4dd205c, task_name=validate, task_id=e7654829-a8ac-4bec-a7f9-6e0757b16459]: Accuracy when validating site-1's model on site-2s data: 0.8557403008709422
+...
+2024-02-25 15:21:50,573 - Gtsrb43Validator - INFO - [identity=site-2, run=126ad075-27cd-4994-9b3a-5d8fc4dd205c, peer=example_project, peer_run=126ad075-27cd-4994-9b3a-5d8fc4dd205c, task_name=validate, task_id=9b2049c9-fc9f-4b08-8648-f123cbf51a19]: Accuracy when validating site-2's model on site-2s data: 0.8578780680918449
+```
+
+Moreover, the final validation accuracies show that the model converges to a good accuracy that is very close to the accuracy of the model trained on the whole dataset.
+However, the model convergence is slower than the model trained on the whole dataset, where it almost saturates after 23 epochs in federated learning, while it saturates after 10 epochs in the normal training.
+
+This experiment run for five minutes using NVFlare, while the same setup on a single client took more than 10 minutes.
+The final aggregated model achieved 86.24% accuracy on the test data, while the model trained on the whole dataset achieved 84.8% accuracy on the test data.
+The accuracy and the run time when training on the whole dataset without NVFlare are displayed in the following screenshot.
+
+![alt text](image-7.png)
+
+### Second experiment
+
+Like the first experiment, we will run the program in POC mode.
+Now, we will show the changes in the configurations and the results of the second experiment.
+The training task on the client's side runs for 20 epochs, and this process is repeated twice.
+This means that the server aggregates the models after epoch 20 and epoch 40.
+This experiment is to show the effect of late aggregation on the final model's accuracy.
+
+The training loss of client 1 and client 2 are shown below, respectively.
+
+![alt text](image-8.png)
+![alt text](image-9.png)
+
+The same goes for the validation accuracies, which are reported as follows.
+
+![alt text](image-10.png)
+![alt text](image-11.png)
+
+Finally, we will show the final validation accuracies on the test data.
+Since both clients will report the same accuracies, as they both use the same test data, we will show only one of them.
+Still, the server's aggregated model has the highest accuracy, which is 0.8567.
+Although, it is slight lower than the accuracy reported when training on the clients side and aggregate after 10 epochs instead of 20.
+
+```bash
+2024-02-25 16:37:32,454 - Gtsrb43Validator - INFO - [identity=site-2, run=94d8ac69-6806-45ab-9beb-6a73945fd003, peer=example_project, peer_run=94d8ac69-6806-45ab-9beb-6a73945fd003, task_name=validate, task_id=6124a666-4a52-49b6-8764-4275eed836a9]: Accuracy when validating SRV_server's model on site-2s data: 0.856769596199525
+...
+2024-02-25 16:37:42,493 - Gtsrb43Validator - INFO - [identity=site-2, run=94d8ac69-6806-45ab-9beb-6a73945fd003, peer=example_project, peer_run=94d8ac69-6806-45ab-9beb-6a73945fd003, task_name=validate, task_id=ab255a60-8f7c-4785-a4a4-325bf9d64fa4]: Accuracy when validating site-1's model on site-2s data: 0.8463974663499604
+...
+2024-02-25 16:37:52,525 - Gtsrb43Validator - INFO - [identity=site-2, run=94d8ac69-6806-45ab-9beb-6a73945fd003, peer=example_project, peer_run=94d8ac69-6806-45ab-9beb-6a73945fd003, task_name=validate, task_id=74c44b36-e31c-48e5-85c6-2b7149a8e4e5]: Accuracy when validating site-2's model on site-2s data: 0.8534441805225653
+```
+
+The runtime of the experiment is 12 minutes.
+
 ## Running without NVFlare
 
 In this section, we will discuss how to run the program without NVFlare.
