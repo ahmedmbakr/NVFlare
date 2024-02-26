@@ -254,7 +254,38 @@ Although, it is slight lower than the accuracy reported when training on the cli
 2024-02-25 16:37:52,525 - Gtsrb43Validator - INFO - [identity=site-2, run=94d8ac69-6806-45ab-9beb-6a73945fd003, peer=example_project, peer_run=94d8ac69-6806-45ab-9beb-6a73945fd003, task_name=validate, task_id=74c44b36-e31c-48e5-85c6-2b7149a8e4e5]: Accuracy when validating site-2's model on site-2s data: 0.8534441805225653
 ```
 
-The runtime of the experiment is 12 minutes.
+The runtime of the experiment is 9 minutes.
+
+### Third experiment
+
+In this experiment, we will run the program in POC mode.
+The training task on the client's side runs for 40 epochs, and the server aggregates the models in the end.
+This is the worst scenario, as the server aggregates the models after the training process is done.
+This experiment is to show the effect of late aggregation on the final model's accuracy.
+The training loss of client 1 and client 2 are shown below, respectively.
+We can note that the curve is smooth for both clients, since each client has not gotten any aggregated model from the server.
+
+![alt text](image-12.png)
+![alt text](image-13.png)
+
+In addition, the validation accuracies are reported as follows.
+
+![alt text](image-14.png)
+![alt text](image-15.png)
+
+Finally, we will show the final validation accuracies on the test data for client 1.
+The reporting below shows that this is the worst configuration, as the server's aggregated model has the lowest accuracy, which is 0.714.
+Moreover, since each client has trained on half of the data, the accuracy of the model trained on the client's side is lower than the accuracies we got before in experiments 1 and 2.
+
+```bash
+2024-02-26 08:07:34,130 - Gtsrb43Validator - INFO - [identity=site-1, run=1258eb49-4221-4278-8807-074ff46617f5, peer=example_project, peer_run=1258eb49-4221-4278-8807-074ff46617f5, task_name=validate, task_id=432902dd-fa2d-4c71-90cd-1ee47df2b129]: Accuracy when validating SRV_server's model on site-1s data: 0.7147268408551068
+...
+2024-02-26 08:07:43,986 - Gtsrb43Validator - INFO - [identity=site-1, run=1258eb49-4221-4278-8807-074ff46617f5, peer=example_project, peer_run=1258eb49-4221-4278-8807-074ff46617f5, task_name=validate, task_id=ad3d626d-b24a-4f8b-a824-d108832ad2b0]: Accuracy when validating site-2's model on site-1s data: 0.813064133016627
+...
+2024-02-26 08:07:54,002 - Gtsrb43Validator - INFO - [identity=site-1, run=1258eb49-4221-4278-8807-074ff46617f5, peer=example_project, peer_run=1258eb49-4221-4278-8807-074ff46617f5, task_name=validate, task_id=fb980198-822e-4a71-9744-b2e9fb4e48ef]: Accuracy when validating site-1's model on site-1s data: 0.8206650831353919
+```
+
+The runtime of the experiment is 7 minutes.
 
 ## Running without NVFlare
 

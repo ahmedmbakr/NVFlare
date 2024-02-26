@@ -1,6 +1,8 @@
 # source ~/NVFlare/examples/hello-world/nvflare_example/bin/activate
-conda deactivate
-conda activate nvflare
+# conda deactivate
+source ~/anaconda3/bin/activate nvflare
+# conda activate nvflare
+sleep 2
 rm -rf /tmp/nvflare/poc
 nvflare poc prepare -n 2
 cd ~/NVFlare/examples/hello-world
