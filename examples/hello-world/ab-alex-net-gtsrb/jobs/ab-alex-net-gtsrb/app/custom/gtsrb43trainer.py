@@ -83,7 +83,7 @@ class Gtsrb43Trainer(Executor):
 
         # Training setup
         self.model = AlexnetTS(num_classes)
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.loss = nn.CrossEntropyLoss()
         self.optimizer = SGD(self.model.parameters(), lr=lr, momentum=0.9)
