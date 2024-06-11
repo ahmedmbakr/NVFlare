@@ -16,7 +16,7 @@ import os.path
 
 import torch
 from pt_constants import PTConstants
-from alex_net_network import AlexnetTS
+from alex_net_network import AlexNet
 from torch import nn
 from torch.optim import SGD
 from torch.utils.data.dataloader import DataLoader
@@ -82,7 +82,7 @@ class Gtsrb43Trainer(Executor):
         print(f"Number of classes: {num_classes}, Learning rate: {lr}, Number of epochs: {epochs}, Batch size: {batch_size}, Train validation split: {train_val_split}, data path: {data_path}")
 
         # Training setup
-        self.model = AlexnetTS(num_classes)
+        self.model = AlexNet(num_classes)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.loss = nn.CrossEntropyLoss()

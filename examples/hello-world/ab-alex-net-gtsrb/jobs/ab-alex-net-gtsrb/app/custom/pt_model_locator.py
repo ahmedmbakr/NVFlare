@@ -17,7 +17,7 @@ from typing import List, Union
 
 import torch.cuda
 from pt_constants import PTConstants
-from alex_net_network import AlexnetTS
+from alex_net_network import AlexNet
 
 from nvflare.apis.dxo import DXO
 from nvflare.apis.fl_context import FLContext
@@ -30,7 +30,7 @@ class PTModelLocator(ModelLocator):
     def __init__(self):
         super().__init__()
         num_classes = 43
-        self.model = AlexnetTS(num_classes)
+        self.model = AlexNet(num_classes)
 
     def get_model_names(self, fl_ctx: FLContext) -> List[str]:
         return [PTConstants.PTServerName]

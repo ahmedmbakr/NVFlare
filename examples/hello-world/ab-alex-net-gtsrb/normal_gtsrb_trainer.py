@@ -16,7 +16,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.abspath(os.path.join(dir_path, 'jobs/ab-alex-net-gtsrb/app/custom/')))
 print(sys.path)
 # import alex_net_network
-from alex_net_network import AlexnetTS
+from alex_net_network import AlexNet
 from gtsrb_TestDataLoader import GTSRB_TestDataLoader
 
 data_path="~/data/gtsrb/GTSRB"
@@ -33,6 +33,7 @@ class GTSRB:
         batch_size = 128,
         train_val_split = 0.8,
         random_seed = 42,
+        use_original_imagenet_model = True,
         load_model_from_disk = False,
         model_load_path = None
     ):
@@ -47,7 +48,8 @@ class GTSRB:
             submit_model_task_name (str, optional): Task name for submit model. Defaults to "submit_model".
             train_val_split: This is the percentage of the data that will be used for the training. The rest will be used for the validation.
             random_seed: This is the seed that will be used to split the data into training and validation.
-            load_model_from_disk: This is a boolean value that indicates whether the model should be loaded from the disk or not.
+            use_original_imagenet_model: This is a boolean value that indicates whether the original ImageNet model should be used or not. If True, the original ImageNet model will be used. If False, the model will be trained from scratch. 
+            load_model_from_disk: This is a boolean value that indicates whether the model should be loaded from the disk or not. Note that if this is true, then use_original_imagenet_model will be ignored.
             model_load_path: This is the path of the model that should be loaded from the disk. Only used if load_model_from_disk is True.
         """
         super().__init__()
@@ -65,8 +67,23 @@ class GTSRB:
         print(f"Number of classes: {num_classes}, Learning rate: {lr}, Number of epochs: {epochs}, Batch size: {batch_size}, Train validation split: {train_val_split}, Users split: {users_split}, data path: {data_path}")
 
         # Training setup
-        self.model = AlexnetTS(num_classes)
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.model = AlexNet(num_classes)
+
+        if use_original_imagenet_model:
+            # Load the original pretrained AlexNet model (Trained on ImageNet dataset)
+            alexnet = models.alexnet(pretrained=True)
+            # We only need the features, not the classifier
+            alexnet_original_features = alexnet.features
+
+            
+            # self.model.load_state_dict(alexnet_original_features.state_dict()) # I tried to use load_state_dict but it did not work. I had to manually set the features of the model to the features of the original AlexNet model.
+            self.model.features = alexnet_original_features # AB: I set the features of the model to the features of the original AlexNet model to load the weights of the original AlexNet model. I immediately noticed the difference. In the first epoch, instead of having validation accuracy of 5%, after using the features of the original AlexNet model, I got 82% validation accuracy. This is a huge improvement. On the second epoch, I got 97.30% validation accuracy. This is a huge improvement. I will continue to use this model for the training.
+
+            # Check the model architecture. After manually checking the model architecture, I found that it is similar to the model that I used in the AlexNet class (alex_net_network.py).
+            print("Loaded the original AlexNet model that was trained on ImageNet dataset.")
+            print(alexnet_original_features)
+
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(self.device)
         self.model.to(self.device)
         self.loss = nn.CrossEntropyLoss()
@@ -203,10 +220,10 @@ if __name__ == "__main__":
                     batch_size = 128,
                     train_val_split = 0.8,
                     load_model_from_disk = False, # If True, the model will be loaded from the disk
-                    model_load_path = os.path.abspath(os.path.join(dir_path, "model.pth"))) # The path of the model that should be loaded from the disk if load_model_from_disk is True
+                    model_load_path = os.path.abspath(os.path.join(dir_path, "model_50.pth"))) # The path of the model that should be loaded from the disk if load_model_from_disk is True
 
     gtsrb.local_train(validate=True, save_graphs_after_each_epoch=True) # AB: Training the model
-    gtsrb.display_train_trackers() # AB: Display the training trackers
+    # gtsrb.display_train_trackers() # AB: Display the training trackers
 
     validation_on_test_accuracy = gtsrb.validate(gtsrb.test_loader) * 100 # AB: Final validation on the test data
     print(f"Validation accuracy on test data: {validation_on_test_accuracy:.2f}%")
