@@ -10,6 +10,7 @@ import torchvision
 import time
 import pickle
 import matplotlib.pyplot as plt
+from torchvision import models, transforms
 
 import sys, os
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -94,14 +95,14 @@ class GTSRB:
             self.load_model_from_disk(model_path)
 
         # Create GTSRB dataset for training.
-        transforms = Compose(
-            [
-                Resize([112, 112]),
-                ToTensor()
-            ]
-        )
+        preprocess = transforms.Compose([ # AB: I added the transforms to the dataset to resize the images to 256x256, crop them to 224x224, convert them to tensors, and normalize them. This is the same as the original AlexNet model. I took it from this link: https://pytorch.org/hub/pytorch_vision_alexnet/
+                        transforms.Resize(256), # Resize the image to 256x256
+                        transforms.CenterCrop(224), # Crop the image to 224x224 around the center
+                        transforms.ToTensor(),
+                        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                    ])
         train_data_path = os.path.join(data_path, "Training")
-        self._dataset = torchvision.datasets.ImageFolder(root = train_data_path, transform = transforms)
+        self._dataset = torchvision.datasets.ImageFolder(root = train_data_path, transform = preprocess)
 
         n_train_examples = int(len(self._dataset) * train_val_split)
         n_val_examples = len(self._dataset) - n_train_examples
@@ -117,7 +118,7 @@ class GTSRB:
         print(f"Gtsrb43Trainer initialized: This is the path of the data: {data_path}")
 
         test_data_path = os.path.join(data_path, "Final_Test")
-        test_dataset = GTSRB_TestDataLoader(data_path, transform = transforms)
+        test_dataset = GTSRB_TestDataLoader(data_path, transform = preprocess)
         self.test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     def load_model_from_disk(self, model_path):
