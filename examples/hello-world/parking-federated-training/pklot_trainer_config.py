@@ -1,6 +1,8 @@
 # path to your own data and coco file
 train_data_dir = "/home/bakr/pklot/train"
 train_coco = "/home/bakr/pklot/train/_annotations.coco.json"
+val_data_dir = "/home/bakr/pklot/valid"
+val_coco = "/home/bakr/pklot/valid/_annotations.coco.json"
 
 # Batch size
 train_batch_size = 12
