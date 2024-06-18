@@ -100,7 +100,7 @@ class PklotTrainer:
                 print(f"Iteration: {i}/{len_dataloader}, Loss: {losses}")
 
                 # Validation
-                metric = self.validate(self.val_data_loader) # TODO: AB: To be moved outside of this loop. (Once per epoch)
+            metric = self.validate(self.val_data_loader)
             
 
     def validate_old(self, loader):
@@ -126,10 +126,13 @@ class PklotTrainer:
         return metric
     
     def validate(self, val_loader):
-        # TODO: AB: Decide if you are going to remove the files in the input directory needed by mAP calculation.
+        # Remove the files in the input directory needed by mAP calculation
+        os.system(f"rm -rf {config.mAP_val_prediction_directory}/*.txt")
+        os.system(f"rm -rf {config.mAP_val_gt_directory}/*.txt")
+
         self.model.eval()  # Set the model to evaluation mode
         device = self.device
-        detection_threshold = 0.2  # Threshold for considering detected objects. TODO: AB: Change to 0.5
+        detection_threshold = 0.5  # Threshold for considering detected objects.
         len_val_loader = len(val_loader)
         with torch.no_grad():  # No need to track gradients
             for batch_id, (imgs, annotations) in enumerate(val_loader):
@@ -177,6 +180,8 @@ class PklotTrainer:
                 if batch_id % 10 == 0:
                     print(f"batch: {batch_id} / {len_val_loader}", end="")
 
+        from mAP import calculate_mAP
+        calculate_mAP()
         print("Validation complete.")
 
 if __name__ == "__main__":
