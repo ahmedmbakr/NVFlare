@@ -13,6 +13,8 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 import pklot_trainer_config as config
 from PkLotDataLoader import PklotDataSet, collate_fn
 
+class_id_to_name_dict = {1: "Space-empty", 2: "Space-occupied"}
+
 class PklotTrainer:
 
     def __init__(self):
@@ -88,8 +90,6 @@ class PklotTrainer:
                 annotations = [{k: v.to(self.device) for k, v in t.items()} for t in annotations]
                 if len(annotations) == 0:
                     continue
-                if i == 76:
-                    print("Stop here")
                 loss_dict = self.model(imgs, annotations)
                 losses = sum(loss for loss in loss_dict.values())
 
@@ -126,9 +126,10 @@ class PklotTrainer:
         return metric
     
     def validate(self, val_loader):
+        # TODO: AB: Decide if you are going to remove the files in the input directory needed by mAP calculation.
         self.model.eval()  # Set the model to evaluation mode
         device = self.device
-        detection_threshold = 0.5  # Threshold for considering detected objects
+        detection_threshold = 0.2  # Threshold for considering detected objects. TODO: AB: Change to 0.5
         len_val_loader = len(val_loader)
         with torch.no_grad():  # No need to track gradients
             for batch_id, (imgs, annotations) in enumerate(val_loader):
@@ -144,13 +145,27 @@ class PklotTrainer:
 
                     # Filter out predictions based on detection threshold
                     keep = pred_scores > detection_threshold
-                    pred_boxes = pred_boxes[keep]
-                    pred_labels = pred_labels[keep]
-                    pred_scores = pred_scores[keep]
+                    pred_boxes = pred_boxes[keep].cpu().numpy().tolist()
+                    pred_labels = pred_labels[keep].cpu().numpy().tolist()
+                    pred_scores = pred_scores[keep].cpu().numpy().tolist()
 
                     # Ground truth
-                    gt_boxes = annotations[i]['boxes']
-                    gt_labels = annotations[i]['labels']
+                    gt_boxes = list(annotations[i]['boxes'].cpu().numpy())
+                    gt_labels = list(annotations[i]['labels'].cpu().numpy())
+
+                    unique_image_id = batch_id * len(imgs) + i
+                    file_name = f'{unique_image_id}.txt'
+                    prediction_file_path = os.path.join(config.mAP_val_prediction_directory, file_name)
+                    with open(prediction_file_path, 'w') as f:
+                        for box, label_id, score in zip(pred_boxes, pred_labels, pred_scores):
+                            label_name = class_id_to_name_dict[label_id]
+                            f.write(f'{label_name} {score} {box[0]} {box[1]} {box[2]} {box[3]}\n')
+
+                    gt_file_path = os.path.join(config.mAP_val_gt_directory, file_name)
+                    with open(gt_file_path, 'w') as f:
+                        for box, label_id in zip(gt_boxes, gt_labels):
+                            label_name = class_id_to_name_dict[label_id]
+                            f.write(f'{label_name} {box[0]} {box[1]} {box[2]} {box[3]}\n')
 
                     # Calculate and print some form of validation metric
                     # This is where you might calculate intersection-over-union (IoU) and derive your precision/recall metrics.
