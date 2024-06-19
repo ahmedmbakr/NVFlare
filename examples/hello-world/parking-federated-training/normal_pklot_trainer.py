@@ -85,7 +85,6 @@ class PklotTrainer:
             self.model.train()
             i = 0
             for imgs, annotations in self.train_data_loader:
-                i += 1
                 imgs = list(img.to(self.device) for img in imgs)
                 annotations = [{k: v.to(self.device) for k, v in t.items()} for t in annotations]
                 if len(annotations) == 0:
@@ -96,34 +95,13 @@ class PklotTrainer:
                 self.optimizer.zero_grad()
                 losses.backward()
                 self.optimizer.step()
+                if i % 10 == 0:
+                    print(f"Iteration: {i}/{len_dataloader}, Loss: {losses}", end='\r')
+                i += 1
 
-                print(f"Iteration: {i}/{len_dataloader}, Loss: {losses}")
-
-                # Validation
+            print("\n")
+            # Validation
             metric = self.validate(self.val_data_loader)
-            
-
-    def validate_old(self, loader):
-        """
-        Validate the model on the given loader (validate or test).
-        """
-        self.model.eval()
-
-        correct = 0
-        total = 0
-        with torch.no_grad():
-            for i, (images, labels) in enumerate(loader):
-                images, labels = images.to(self.device), labels.to(self.device)
-                output = self.model(images)
-
-                _, pred_label = torch.max(output, 1)
-
-                correct += (pred_label == labels).sum().item()
-                total += images.size()[0]
-            print(f"Correct: {correct}, not Correct: {total - correct}, Total: {total}")
-            metric = correct / float(total)
-
-        return metric
     
     def validate(self, val_loader):
         # Remove the files in the input directory needed by mAP calculation
@@ -178,8 +156,8 @@ class PklotTrainer:
                         # print(f"Predictions: {len(pred_scores)} objects detected")
                     # Example metric (not implemented here): IoU, Precision, Recall, mAP
                 if batch_id % 10 == 0:
-                    print(f"batch: {batch_id} / {len_val_loader}", end="")
-
+                    print(f"batch: {batch_id} / {len_val_loader}", end="\r")
+        print("\n")
         from mAP import calculate_mAP
         calculate_mAP()
         print("Validation complete.")

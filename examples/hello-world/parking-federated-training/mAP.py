@@ -706,7 +706,7 @@ def calculate_mAP():
                 plt.fill_between(area_under_curve_x, 0, area_under_curve_y, alpha=0.2, edgecolor='r')
                 # set window title
                 fig = plt.gcf() # gcf - get current figure
-                fig.canvas.manager.set_window_title('AP ' + class_name) # This does not work
+                fig.canvas.manager.set_window_title('AP ' + class_name)
                 # set plot title
                 plt.title('class: ' + text)
                 #plt.suptitle('This is a somewhat long figure title', fontsize=16)
