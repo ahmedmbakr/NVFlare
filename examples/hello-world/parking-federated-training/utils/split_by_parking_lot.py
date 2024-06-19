@@ -109,6 +109,7 @@ def split_by_parking_lot_main(root_dir):
                 annotations = [annotation for annotation in data["annotations"] if annotation["image_id"] == image_id]
                 for parking_lot, dates in parking_lot_to_dates_dict.items():
                     if dates[0] <= date <= dates[1]:
+                        image["file_name"] = os.path.join(config.PKLOT_DATA_DIR, train_valid_test_selector, image["file_name"])
                         parking_lot_to_json_dict[parking_lot]["images"].append(image)
                         parking_lot_to_json_dict[parking_lot]["annotations"].extend(annotations)
                         break
@@ -136,7 +137,7 @@ def analyze_coco_file(coco_file):
 
 if __name__ == "__main__":
     split_by_parking_lot_main(config.SPLIT_BY_PARKING_LOT_ROOT_DIR)
-    
+
     print("Overall dataset analysis")
     analyze_coco_file(config.train_coco)
     analyze_coco_file(config.val_coco)
