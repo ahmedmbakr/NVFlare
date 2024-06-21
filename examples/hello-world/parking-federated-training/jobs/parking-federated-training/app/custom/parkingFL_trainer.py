@@ -86,7 +86,8 @@ class ParkingFL_Trainer(Executor):
         print(f"Number of classes: {num_classes}, Learning rate: {lr}, Number of epochs: {epochs}, Batch size: {batch_size}, Train validation split: {train_val_split}, data path: {data_path}")
 
         # Training setup
-        self.model = ResnetFasterRCNN()
+        resnetNetwork = ResnetFasterRCNN(num_classes)
+        self.model = resnetNetwork.get_model()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.loss = nn.CrossEntropyLoss()
@@ -99,11 +100,11 @@ class ParkingFL_Trainer(Executor):
         val_coco = os.path.join(val_data_dir, "_annotations.coco.json")
 
         self._train_dataset = PklotDataSet(
-            root_path=train_data_dir, annotation_path=train_coco, transforms=self.model.get_transform()
+            root_path=train_data_dir, annotation_path=train_coco, transforms=resnetNetwork.get_transform()
         )
 
         self._val_dataset = PklotDataSet(
-            root_path=val_data_dir, annotation_path=val_coco, transforms=self.model.get_transform()
+            root_path=val_data_dir, annotation_path=val_coco, transforms=resnetNetwork.get_transform()
         )
 
          # own DataLoader
@@ -129,7 +130,7 @@ class ParkingFL_Trainer(Executor):
         self._n_iterations = len(self._train_loader)
         print(f"Number of iterations: {self._n_iterations}")
         # print(f"Shape of the whole dataset: {self._train_dataset.dataset.data.shape}")
-        print(f"Number of samples from the whole data: {len(self._train_dataset.indices)} = Number of iterations ({self._n_iterations}) * batch size ({batch_size})")
+        print(f"Number of samples from the whole data: {len(self._train_dataset)} = Number of iterations ({self._n_iterations}) * batch size ({batch_size})")
 
         # Setup the persistence manager to save PT model.
         # The default training configuration is used by persistence manager
@@ -238,7 +239,7 @@ class ParkingFL_Trainer(Executor):
                     self.log_info(fl_ctx, f"AB: Epoch: {epoch}/{self._epochs}, Iteration: {i}/{len_dataloader}, Loss: {losses}")
 
 
-                running_loss += losses.cpu().detach().numpy() / imgs.size()[0]
+                running_loss += losses.cpu().detach().numpy() / imgs[0].size()[0]
                 # if i % 3000 == 0:
                 #     self.log_info(
                 #         fl_ctx, f"Epoch: {epoch}/{self._epochs}, Iteration: {i}, " f"Loss: {running_loss/3000}"

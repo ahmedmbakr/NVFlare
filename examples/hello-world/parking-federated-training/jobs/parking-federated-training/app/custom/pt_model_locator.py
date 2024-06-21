@@ -17,7 +17,7 @@ from typing import List, Union
 
 import torch.cuda
 from pt_constants import PTConstants
-from alex_net_network import AlexNet
+from Resnet import ResnetFasterRCNN
 
 from nvflare.apis.dxo import DXO
 from nvflare.apis.fl_context import FLContext
@@ -29,8 +29,8 @@ from nvflare.app_opt.pt.model_persistence_format_manager import PTModelPersisten
 class PTModelLocator(ModelLocator):
     def __init__(self):
         super().__init__()
-        num_classes = 43
-        self.model = AlexNet(num_classes)
+        num_classes = 3
+        self.model = ResnetFasterRCNN(num_classes)
 
     def get_model_names(self, fl_ctx: FLContext) -> List[str]:
         return [PTConstants.PTServerName]

@@ -4,8 +4,10 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 
 class ResnetFasterRCNN:
     def __init__(self, num_classes=3): # 3 classes: space-empty, space-occupied, background
-        model = self.__get_model(num_classes) 
-        return model
+        self.model = self.__get_model(num_classes) 
+    
+    def get_model(self):
+        return self.model
 
     def __get_model(self, num_classes):
         # load an instance segmentation model pre-trained pre-trained on COCO
