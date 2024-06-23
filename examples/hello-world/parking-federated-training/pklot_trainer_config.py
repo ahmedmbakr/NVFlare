@@ -30,6 +30,7 @@ weight_decay = 0.005
 # mAP calculation configurations
 mAP_val_prediction_directory = os.path.join(ROOT_DIR, "input/detection-results")
 mAP_val_gt_directory = os.path.join(ROOT_DIR, "input/ground-truth")
+mAP_metric_file_path = os.path.join(ROOT_DIR, "outputs/metrics.p")
 
 # Split by parking lot
 SPLIT_BY_PARKING_LOT_ROOT_DIR = PKLOT_DATA_DIR

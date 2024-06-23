@@ -11,7 +11,14 @@ import math
 
 import numpy as np
 
-def calculate_mAP():
+def calculate_mAP(inputs_dir, outputs_dir):
+
+    ret_metrics = {'ap': {},
+                   'precision': {},
+                    'recall': {},
+                    'log_avg_miss_rate': {},
+                    'mAP': 0.0
+                  }
 
     MINOVERLAP = 0.5 # default value (defined in the PASCAL VOC2012 challenge)
 
@@ -48,10 +55,10 @@ def calculate_mAP():
     # make sure that the cwd() is the location of the python script (so that every path makes sense)
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-    GT_PATH = os.path.join(os.getcwd(), 'input', 'ground-truth')
-    DR_PATH = os.path.join(os.getcwd(), 'input', 'detection-results')
+    GT_PATH = os.path.join(inputs_dir, 'ground-truth')
+    DR_PATH = os.path.join(inputs_dir, 'detection-results')
     # if there are no images then no animation can be shown
-    IMG_PATH = os.path.join(os.getcwd(), 'input', 'images-optional')
+    IMG_PATH = os.path.join(inputs_dir, 'images-optional')
     if os.path.exists(IMG_PATH): 
         for dirpath, dirnames, files in os.walk(IMG_PATH):
             if not files:
@@ -61,14 +68,14 @@ def calculate_mAP():
         args.no_animation = True
 
     # try to import OpenCV if the user didn't choose the option --no-animation
-    show_animation = False
-    # if not args.no_animation:
-    #     try:
-    #         import cv2
-    #         show_animation = True
-    #     except ImportError:
-    #         print("\"opencv-python\" not found, please install to visualize the results.")
-    #         args.no_animation = True
+    show_animation=False
+    if not args.no_animation:
+        try:
+            import cv2
+            show_animation = True
+        except ImportError:
+            print("\"opencv-python\" not found, please install to visualize the results.")
+            args.no_animation = True
 
     # try to import Matplotlib if the user didn't choose the option --no-plot
     draw_plot = False
@@ -341,7 +348,7 @@ def calculate_mAP():
     TEMP_FILES_PATH = ".temp_files"
     if not os.path.exists(TEMP_FILES_PATH): # if it doesn't exist already
         os.makedirs(TEMP_FILES_PATH)
-    output_files_path = "output"
+    output_files_path = outputs_dir
     if os.path.exists(output_files_path): # if it exist already
         # reset the output directory
         shutil.rmtree(output_files_path)
@@ -585,7 +592,7 @@ def calculate_mAP():
                                 # true positive
                                 tp[idx] = 1
                                 gt_match["used"] = True
-                                count_true_positives[class_name] += 1
+                                count_true_positives[class_name] += 1 # TODO: AB: Consider calculating true negative, false positive, false negative to build the confusion matrix.
                                 # update the ".json" file
                                 with open(gt_file, 'w') as f:
                                         f.write(json.dumps(ground_truth_data))
@@ -678,6 +685,9 @@ def calculate_mAP():
             #print(prec)
 
             ap, mrec, mprec = voc_ap(rec[:], prec[:])
+            ret_metrics['ap'][class_name] = ap
+            ret_metrics['precision'][class_name] = mprec
+            ret_metrics['recall'][class_name] = mrec
             sum_AP += ap
             text = "{0:.2f}%".format(ap*100) + " = " + class_name + " AP " #class_name + " AP = {0:.2f}%".format(ap*100)
             """
@@ -693,6 +703,7 @@ def calculate_mAP():
             n_images = counter_images_per_class[class_name]
             lamr, mr, fppi = log_average_miss_rate(np.array(prec), np.array(rec), n_images)
             lamr_dictionary[class_name] = lamr
+            ret_metrics['log_avg_miss_rate'][class_name] = lamr
 
             """
             Draw plot
@@ -730,6 +741,7 @@ def calculate_mAP():
 
         output_file.write("\n# mAP of all classes\n")
         mAP = sum_AP / n_classes
+        ret_metrics['mAP'] = mAP
         text = "mAP = {0:.2f}%".format(mAP*100)
         output_file.write(text + "\n")
         print(text)
@@ -906,6 +918,8 @@ def calculate_mAP():
             plot_color,
             ""
             )
+    return ret_metrics
         
 if __name__ == "__main__":
-    calculate_mAP()
+    metrics = calculate_mAP()
+    print("Metrics: ", metrics)

@@ -103,14 +103,22 @@ class PklotTrainer:
             # Validation
             metric = self.validate(self.val_data_loader)
     
-    def validate(self, val_loader):
+    def validate(self, val_loader, detection_threshold=0.5):
+        """
+        This function is used to validate the model on the validation set.
+        It calculates the mAP score for the model.
+        Inputs:
+        - val_loader: PyTorch DataLoader object for the validation set.
+        - detection_threshold: Threshold for considering detected objects. If you encountered an error when the validation runs, change this number to a lower value (e.x. 0.3)
+        Outputs:
+        - metric: Metrics after running mAP calculation. 1) AP per class, 2) precision per class, 3) recall per class, 4) log average miss rate per class, 5) mAP
+        """
         # Remove the files in the input directory needed by mAP calculation
         os.system(f"rm -rf {config.mAP_val_prediction_directory}/*.txt")
         os.system(f"rm -rf {config.mAP_val_gt_directory}/*.txt")
 
         self.model.eval()  # Set the model to evaluation mode
         device = self.device
-        detection_threshold = 0.5  # Threshold for considering detected objects.
         len_val_loader = len(val_loader)
         with torch.no_grad():  # No need to track gradients
             for batch_id, (imgs, annotations) in enumerate(val_loader):
@@ -156,11 +164,14 @@ class PklotTrainer:
                         # print(f"Predictions: {len(pred_scores)} objects detected")
                     # Example metric (not implemented here): IoU, Precision, Recall, mAP
                 if batch_id % 10 == 0:
-                    print(f"batch: {batch_id} / {len_val_loader}", end="\r")
+                    print(f"Validating batch: {batch_id} / {len_val_loader}", end="\r")
         print("\n")
         from mAP import calculate_mAP
-        calculate_mAP()
+        metric = calculate_mAP('input', 'outputs') # TODO: AB: Add the folder names as part of the configuration
+        import pickle
+        pickle.dump(metric, open(config.mAP_metric_file_path, "wb"))
         print("Validation complete.")
+        return metric
 
 if __name__ == "__main__":
     trainer = PklotTrainer()
