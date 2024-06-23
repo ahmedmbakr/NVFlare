@@ -13,12 +13,13 @@
 # limitations under the License.
 
 import torch
-from alex_net_network import AlexNet
+from Resnet import ResnetFasterRCNN
 from torch.utils.data import DataLoader
-from torchvision.datasets import CIFAR10
 from torch.utils.data import random_split
 from torchvision.transforms import Compose, Normalize, ToTensor, Resize
 import torchvision
+from PkLotDataLoader import PklotDataSet, collate_fn
+import torch.utils.data
 
 from nvflare.apis.dxo import DXO, DataKind, from_shareable
 from nvflare.apis.executor import Executor
@@ -30,35 +31,36 @@ from nvflare.app_common.app_constant import AppConstants
 
 import os
 
-from gtsrb_TestDataLoader import GTSRB_TestDataLoader
-
-
-class Gtsrb43Validator(Executor):
-    def __init__(self, data_path="~/data", num_classes = 43,
-        batch_size = 32, train_val_split = 0.8, random_seed = 42, validate_task_name=AppConstants.TASK_VALIDATION):
+class ParkingFL_Tester(Executor):
+    def __init__(self, data_path, num_classes,
+        batch_size, num_workers_dl, validate_task_name=AppConstants.TASK_VALIDATION):
         super().__init__()
 
         # AB: Parameters
-        data_path = os.path.expanduser(data_path)
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        data_path = os.path.abspath(os.path.join(dir_path, data_path)) # AB: This is to make sure that the path is correct.
+        test_data_dir = os.path.join(data_path, "test")
+        test_coco = os.path.join(test_data_dir, "_annotations.coco.json")
         
-        torch.manual_seed(random_seed) # AB: This is to make sure that the training and the validation data are split in the same way for all the clients.
-
         self._validate_task_name = validate_task_name
 
         # Setup the model
-        self.model = AlexNet(num_classes)
+        resnetNetwork = ResnetFasterRCNN(num_classes)
+        self.model = resnetNetwork.get_model()
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.model.to(self.device)
 
-        # Preparing the dataset for testing.
-        transforms = Compose(
-            [
-                Resize([112, 112]),
-                ToTensor()
-            ]
+        test_dataset = PklotDataSet(
+            root_path=test_data_dir, annotation_path=test_coco, transforms=resnetNetwork.get_transform()
         )
-        test_dataset = GTSRB_TestDataLoader(data_path, transform = transforms)
-        self._test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+        self._test_loader = torch.utils.data.DataLoader(
+            test_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=num_workers_dl,
+            collate_fn=collate_fn,
+        )
 
         # Split the dataset
         print(f"The initialization is running from this folder: {os.path.abspath(__file__)}")
@@ -106,22 +108,22 @@ class Gtsrb43Validator(Executor):
         self.model.load_state_dict(weights)
 
         self.model.eval()
+        # TODO: AB: Implement this function
+        # correct = 0
+        # total = 0
+        # with torch.no_grad():
+        #     for i, (images, labels) in enumerate(self._test_loader):
+        #         if abort_signal.triggered:
+        #             return 0
 
-        correct = 0
-        total = 0
-        with torch.no_grad():
-            for i, (images, labels) in enumerate(self._test_loader):
-                if abort_signal.triggered:
-                    return 0
+        #         images, labels = images.to(self.device), labels.to(self.device)
+        #         output = self.model(images)
 
-                images, labels = images.to(self.device), labels.to(self.device)
-                output = self.model(images)
+        #         _, pred_label = torch.max(output, 1)
 
-                _, pred_label = torch.max(output, 1)
+        #         correct += (pred_label == labels).sum().item()
+        #         total += images.size()[0]
 
-                correct += (pred_label == labels).sum().item()
-                total += images.size()[0]
-
-            metric = correct / float(total)
-
+        #     metric = correct / float(total)
+        metric = None # TODO: AB: Remove this line
         return metric

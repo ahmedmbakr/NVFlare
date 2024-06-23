@@ -63,6 +63,13 @@
             "train_task_name": "train",
             "train_timeout": 0
         }
+      },
+      {
+        "id": "cross_site_validate",
+        "name": "CrossSiteModelEval",
+        "args": {
+          "model_locator_id": "model_locator"
+        }
       }
   ]
 }

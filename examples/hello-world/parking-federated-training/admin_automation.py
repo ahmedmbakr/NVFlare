@@ -29,7 +29,7 @@ def sample_cb(
     
 
 if __name__ == "__main__":
-    POC_WORKSPACE = "/tmp/nvflare/poc/example_project/prod_00"
+    POC_WORKSPACE = "/tmp/bakr-nvflare/poc/example_project/prod_00"
     ADMIN_NAME = "admin@nvidia.com"
     JOB_NAME = "parking-federated-training"
     POLL_STATUS_INTERVAL_SEC = 2

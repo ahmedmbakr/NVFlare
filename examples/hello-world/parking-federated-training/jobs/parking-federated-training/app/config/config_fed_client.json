@@ -17,8 +17,18 @@
           "epochs": 2,
           "num_classes": "{num_classes}",
           "batch_size": "{batch_size}",
-          "train_val_split": "{train_val_split}",
-          "random_seed": "{random_seed}",
+          "num_workers_dl": "{num_workers_dl}"
+        }
+      }
+    },
+    {
+      "tasks": ["validate"],
+      "executor": {
+        "path": "parkingFL_Tester.ParkingFL_Tester",
+        "args": {
+          "data_path": "{datasetpath}",
+          "num_classes": "{num_classes}",
+          "batch_size": "{batch_size}",
           "num_workers_dl": "{num_workers_dl}"
         }
       }

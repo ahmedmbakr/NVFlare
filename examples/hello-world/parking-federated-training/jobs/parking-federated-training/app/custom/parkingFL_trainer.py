@@ -41,18 +41,16 @@ from nvflare.app_opt.pt.model_persistence_format_manager import PTModelPersisten
 class ParkingFL_Trainer(Executor):
     def __init__(
         self,
-        data_path, # TODO: AB: Make sure to set this in the configuration file
+        data_path,
         lr,
         epochs,
-        num_classes, # TODO: 
+        num_classes, 
         batch_size,
-        train_val_split,
-        random_seed = 3,  # AB: 3 classes: space-empty, space-occupied, background
         train_task_name=AppConstants.TASK_TRAIN,
         submit_model_task_name=AppConstants.TASK_SUBMIT_MODEL,
         exclude_vars=None,
         shuffle_training_data_enable=True,
-        num_workers_dl=4, # TODO: AB: Make sure to set this in the configuration file
+        num_workers_dl=4,
         pre_train_task_name=AppConstants.TASK_GET_WEIGHTS,
     ):
         """Cifar10 Trainer handles train and submit_model tasks. During train_task, it trains a
@@ -66,7 +64,6 @@ class ParkingFL_Trainer(Executor):
             submit_model_task_name (str, optional): Task name for submit model. Defaults to "submit_model".
             exclude_vars (list): List of variables to exclude during model loading.
             pre_train_task_name: Task name for pre train task, i.e., sending initial model weights.
-            train_val_split: This is the percentage of the data that will be used for the training. The rest will be used for the validation.
         """
         super().__init__()
 
@@ -74,8 +71,6 @@ class ParkingFL_Trainer(Executor):
         dir_path = os.path.dirname(os.path.realpath(__file__))
         data_path = os.path.abspath(os.path.join(dir_path, data_path)) # AB: This is to make sure that the path is correct.
         
-        torch.manual_seed(random_seed) # AB: This is to make sure that the training and the validation data are split in the same way for all the clients.
-
         self._lr = lr
         self._epochs = epochs
         self._train_task_name = train_task_name
@@ -83,7 +78,7 @@ class ParkingFL_Trainer(Executor):
         self._submit_model_task_name = submit_model_task_name
         self._exclude_vars = exclude_vars
 
-        print(f"Number of classes: {num_classes}, Learning rate: {lr}, Number of epochs: {epochs}, Batch size: {batch_size}, Train validation split: {train_val_split}, data path: {data_path}")
+        print(f"Number of classes: {num_classes}, Learning rate: {lr}, Number of epochs: {epochs}, Batch size: {batch_size}, data path: {data_path}")
 
         # Training setup
         resnetNetwork = ResnetFasterRCNN(num_classes)
@@ -111,7 +106,7 @@ class ParkingFL_Trainer(Executor):
         self._train_loader = torch.utils.data.DataLoader(
             self._train_dataset,
             batch_size=batch_size,
-            shuffle=True,
+            shuffle=shuffle_training_data_enable,
             num_workers=num_workers_dl,
             collate_fn=collate_fn,
         )
@@ -119,7 +114,7 @@ class ParkingFL_Trainer(Executor):
         self._validate_loader = torch.utils.data.DataLoader(
             self._val_dataset,
             batch_size=batch_size,
-            shuffle=shuffle_training_data_enable,
+            shuffle=False,
             num_workers=num_workers_dl,
             collate_fn=collate_fn,
         )
