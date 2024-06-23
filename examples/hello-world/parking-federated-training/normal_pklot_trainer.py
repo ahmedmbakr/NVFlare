@@ -77,8 +77,8 @@ class PklotTrainer:
         return model
     
     def local_train(self):
+        metrics = [] # The metrics for each epoch
         len_dataloader = len(self.train_data_loader)
-
         # Training
         for epoch in range(config.num_epochs):
             print(f"Epoch: {epoch}/{config.num_epochs}")
@@ -102,6 +102,9 @@ class PklotTrainer:
             print("\n")
             # Validation
             metric = self.validate(self.val_data_loader)
+            metrics.append(metric)
+            import pickle
+            pickle.dump(metrics, open(config.mAP_metric_file_path, "wb"))
     
     def validate(self, val_loader, detection_threshold=0.5):
         """
@@ -116,7 +119,6 @@ class PklotTrainer:
         # Remove the files in the input directory needed by mAP calculation
         os.system(f"rm -rf {config.mAP_val_prediction_directory}/*.txt")
         os.system(f"rm -rf {config.mAP_val_gt_directory}/*.txt")
-
         self.model.eval()  # Set the model to evaluation mode
         device = self.device
         len_val_loader = len(val_loader)
@@ -168,8 +170,6 @@ class PklotTrainer:
         print("\n")
         from mAP import calculate_mAP
         metric = calculate_mAP('input', 'outputs') # TODO: AB: Add the folder names as part of the configuration
-        import pickle
-        pickle.dump(metric, open(config.mAP_metric_file_path, "wb"))
         print("Validation complete.")
         return metric
 
