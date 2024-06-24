@@ -27,6 +27,8 @@ lr = 0.001
 momentum = 0.9
 weight_decay = 0.005
 
+models_folder = os.path.join(ROOT_DIR, "models")
+
 # mAP calculation configurations
 mAP_val_prediction_directory = os.path.join(ROOT_DIR, "input/detection-results")
 mAP_val_gt_directory = os.path.join(ROOT_DIR, "input/ground-truth")

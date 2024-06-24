@@ -17,7 +17,9 @@ class_id_to_name_dict = {1: "Space-empty", 2: "Space-occupied"}
 
 class PklotTrainer:
 
-    def __init__(self):
+    def __init__(self, continue_training=False):
+        self.continue_training = continue_training
+
         # create own Dataset
         train_pklot_dataset = PklotDataSet(
             root_path=config.train_data_dir, annotation_path=config.train_coco, transforms=self.get_transform()
@@ -58,6 +60,11 @@ class PklotTrainer:
             params, lr=config.lr, momentum=config.momentum, weight_decay=config.weight_decay
         )
 
+        # If models folder exist, remove it, then create another one
+        if self.continue_training == False and os.path.exists(config.models_folder):
+            os.system(f"rm -rf {config.models_folder}")
+        os.makedirs(config.models_folder)
+
 
     # In my case, just added ToTensor
     def get_transform(self):
@@ -80,6 +87,7 @@ class PklotTrainer:
         metrics = [] # The metrics for each epoch
         len_dataloader = len(self.train_data_loader)
         # Training
+        running_loss = 0.0
         for epoch in range(config.num_epochs):
             print(f"Epoch: {epoch}/{config.num_epochs}")
             self.model.train()
@@ -98,13 +106,25 @@ class PklotTrainer:
                 if i % 10 == 0:
                     print(f"Iteration: {i}/{len_dataloader}, Loss: {losses}", end='\r')
                 i += 1
+                running_loss += losses.cpu().detach().numpy() / imgs[0].size()[0]
 
+            epoch_loss = running_loss / len_dataloader
             print("\n")
+            print(f"Epoch {epoch} Loss: {epoch_loss}")
             # Validation
             metric = self.validate(self.val_data_loader)
+            metric['epoch'] = epoch
+            metric['loss'] = epoch_loss
             metrics.append(metric)
             import pickle
             pickle.dump(metrics, open(config.mAP_metric_file_path, "wb"))
+            # Write the metrics as a json file
+            import json
+            with open(config.mAP_metric_file_path.replace(".p", ".json"), "w") as f:
+                json.dump(metrics, f)
+            # Save the model
+            model_path = os.path.join(config.models_folder, f"model_{epoch}.pth")
+            torch.save(self.model.state_dict(), model_path)
     
     def validate(self, val_loader, detection_threshold=0.5):
         """

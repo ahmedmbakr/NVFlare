@@ -1,6 +1,8 @@
 # Project folders
 simulator-example/
 examples/hello-world/parking-federated-training/input/
+examples/hello-world/parking-federated-training/outputs/
+examples/hello-world/parking-federated-training/models/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
