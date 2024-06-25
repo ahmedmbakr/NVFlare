@@ -37,6 +37,8 @@ from nvflare.app_common.abstract.model import make_model_learnable, model_learna
 from nvflare.app_common.app_constant import AppConstants
 from nvflare.app_opt.pt.model_persistence_format_manager import PTModelPersistenceFormatManager
 
+class_id_to_name_dict = {1: "Space-empty", 2: "Space-occupied"}
+
 
 class ParkingFL_Trainer(Executor):
     def __init__(
@@ -68,8 +70,8 @@ class ParkingFL_Trainer(Executor):
         super().__init__()
 
         # AB: Parameters
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        data_path = os.path.abspath(os.path.join(dir_path, data_path)) # AB: This is to make sure that the path is correct.
+        self.dir_path = os.path.dirname(os.path.realpath(__file__))
+        data_path = os.path.abspath(os.path.join(self.dir_path, data_path)) # AB: This is to make sure that the path is correct.
         
         self._lr = lr
         self._epochs = epochs
@@ -138,6 +140,14 @@ class ParkingFL_Trainer(Executor):
         # AB: Note that the data is downloaded on my local machine in the path: "~/data", and it is shared between all the clients.
         print(f"ParkingFL_Trainer initialized: This is the path of the data: {data_path}") # AB: This was just to make sure that print statements will be displayed in the output. It is displayed in the CMD, but not in the log files, which is expected.
 
+        self.outputs_dir = os.path.abspath(os.path.join(self.dir_path, '../outputs'))
+        self.models_dir = os.path.abspath(os.path.join(self.outputs_dir, 'models'))
+        
+        # If models folder exist, remove it, then create another one
+        if os.path.exists(self.models_dir):
+            os.system(f"rm -rf {self.models_dir}")
+        os.makedirs(self.models_dir)
+
         self.__num_times_to_call_trainer = 0 # AB: This variable is incremented every time the train function is called.
         self.overall_trackers = {"train_loss": [], "val_acc": []}
 
@@ -199,7 +209,7 @@ class ParkingFL_Trainer(Executor):
         )
         return outgoing_dxo.to_shareable()
 
-    def _local_train(self, fl_ctx, weights, abort_signal, validate_enabled=False): # TODO: AB: Reenable validate_enabled switch
+    def _local_train(self, fl_ctx, weights, abort_signal, validate_enabled=True):
         self.__num_times_to_call_trainer += 1
 
         # Set the model weights
@@ -233,7 +243,6 @@ class ParkingFL_Trainer(Executor):
                 if i % 10 == 0:
                     self.log_info(fl_ctx, f"AB: Epoch: {epoch}/{self._epochs}, Iteration: {i}/{len_dataloader}, Loss: {losses}")
 
-
                 running_loss += losses.cpu().detach().numpy() / imgs[0].size()[0]
                 # if i % 3000 == 0:
                 #     self.log_info(
@@ -245,7 +254,12 @@ class ParkingFL_Trainer(Executor):
                         fl_ctx, f"AB: Epoch: {epoch}/{self._epochs}, Iteration: {i}, " f"Loss: {epoch_loss}")
             trackers['train_loss'].append(epoch_loss)
             if validate_enabled:
-                trackers['val_acc'].append(self._validate(self._validate_loader, fl_ctx)) # TODO: AB: make the validate function return the mAP instead of None
+                trackers['val_acc'].append(self._validate(self._validate_loader, epoch, fl_ctx))
+                self.log_info(fl_ctx, f"Validation completed for epoch: {epoch}. mAP: {trackers['val_acc'][epoch]['mAP']}, AP: {trackers['val_acc'][epoch]['ap']}, log_avg_miss_rate: {trackers['val_acc'][epoch]['log_avg_miss_rate']}")
+
+                model_path = os.path.abspath(os.path.join(self.models_dir, f"model_{epoch}.pth"))
+                torch.save(self.model.state_dict(), model_path)
+
                 # self.log_info(fl_ctx, f"AB: Validation accuracy (correct / total validation images): {(trackers['val_acc'][epoch] * 100):.2f}%") # TODO: AB: Fix this line then uncomment it
                 # TODO: AB: Uncomment the following trackers after fixing the validate function
                 # self.display_train_trackers(trackers, fl_ctx, is_overall=False)
@@ -253,31 +267,86 @@ class ParkingFL_Trainer(Executor):
                 # self.overall_trackers['val_acc'].append(trackers['val_acc'][epoch])
                 # self.display_train_trackers(self.overall_trackers, fl_ctx, is_overall=True)
 
-                dir_path = os.path.dirname(os.path.realpath(__file__))
-                outputs_dir = os.path.abspath(os.path.join(dir_path, '../outputs'))
-                pickle_file_path = os.path.abspath(os.path.join(outputs_dir, 'overall_trackers.pkl'))
+                pickle_file_path = os.path.abspath(os.path.join(self.outputs_dir, 'overall_trackers.pkl'))
                 pickle.dump(self.overall_trackers, open(pickle_file_path, 'wb')) # AB: Save the training trackers to the disk after each epoch
 
-    def _validate(self, loader, fl_ctx):
+    def _validate(self, val_loader, epoch, fl_ctx, detection_threshold=0.2):
         """
         Validate the model on the given loader (validate or test).
         """
-        self.model.eval()
+        mAP_val_prediction_directory = os.path.abspath(os.path.join(self.outputs_dir, 'mapInput/detection-results'))
+        mAP_val_gt_directory = os.path.abspath(os.path.join(self.outputs_dir, "mapInput/ground-truth"))
 
-        correct = 0
-        total = 0
-        with torch.no_grad():
-            for i, (images, labels) in enumerate(loader):
-                images, labels = images.to(self.device), labels.to(self.device)
-                output = self.model(images)
+        # If the directories exist, remove them
+        if os.path.exists(mAP_val_prediction_directory):
+            os.system(f"rm -rf {mAP_val_prediction_directory}")
+        if os.path.exists(mAP_val_gt_directory):
+            os.system(f"rm -rf {mAP_val_gt_directory}")
 
-                _, pred_label = torch.max(output, 1)
+        # Create the directories
+        os.makedirs(mAP_val_prediction_directory)
+        os.makedirs(mAP_val_gt_directory)
 
-                correct += (pred_label == labels).sum().item()
-                total += images.size()[0]
-            self.log_info(fl_ctx, f"AB: Correct: {correct}, not Correct: {total - correct}, Total: {total}")
-            metric = correct / float(total)
+        self.model.eval()  # Set the model to evaluation mode
+        device = self.device
+        len_val_loader = len(val_loader)
+        with torch.no_grad():  # No need to track gradients
+            for batch_id, (imgs, annotations) in enumerate(val_loader):
+                imgs = list(img.to(device) for img in imgs)
+                annotations = [{k: v.to(device) for k, v in t.items()} for t in annotations]
+                predictions = self.model(imgs)  # Get model predictions
+                
+                for i, prediction in enumerate(predictions):
+                    # Post-process the predictions to remove low scoring parts
+                    pred_scores = prediction['scores']
+                    pred_boxes = prediction['boxes']
+                    pred_labels = prediction['labels']
 
+                    # Filter out predictions based on detection threshold
+                    keep = pred_scores > detection_threshold
+                    pred_boxes = pred_boxes[keep].cpu().numpy().tolist()
+                    pred_labels = pred_labels[keep].cpu().numpy().tolist()
+                    pred_scores = pred_scores[keep].cpu().numpy().tolist()
+
+                    # Ground truth
+                    gt_boxes = list(annotations[i]['boxes'].cpu().numpy())
+                    gt_labels = list(annotations[i]['labels'].cpu().numpy())
+
+                    unique_image_id = batch_id * len(imgs) + i
+                    file_name = f'{unique_image_id}.txt'
+                    prediction_file_path = os.path.join(mAP_val_prediction_directory, file_name)
+                    with open(prediction_file_path, 'w') as f:
+                        for box, label_id, score in zip(pred_boxes, pred_labels, pred_scores):
+                            label_name = class_id_to_name_dict[label_id]
+                            f.write(f'{label_name} {score} {box[0]} {box[1]} {box[2]} {box[3]}\n')
+
+                    gt_file_path = os.path.join(mAP_val_gt_directory, file_name)
+                    with open(gt_file_path, 'w') as f:
+                        for box, label_id in zip(gt_boxes, gt_labels):
+                            label_name = class_id_to_name_dict[label_id]
+                            f.write(f'{label_name} {box[0]} {box[1]} {box[2]} {box[3]}\n')
+
+                    # Calculate and print some form of validation metric
+                    # This is where you might calculate intersection-over-union (IoU) and derive your precision/recall metrics.
+                    # For simplicity, here we are just printing out the number of true positives, etc.
+                    # In practice, you would use something like COCOeval from the pycocotools library to do this.
+                        # print(f"Processed {i+1}/{len(val_loader)} images")
+                        # print(f"Predictions: {len(pred_scores)} objects detected")
+                    # Example metric (not implemented here): IoU, Precision, Recall, mAP
+                if batch_id % 10 == 0:
+                    print(f"Validating batch: {batch_id} / {len_val_loader}", end="\r")
+        print("\n")
+        from mAP import calculate_mAP
+        mAP_val_input_dir = os.path.abspath(os.path.join(mAP_val_prediction_directory, '..'))
+        mAP_val_output_dir = os.path.abspath(os.path.join(self.outputs_dir, f'mapOutputs/{epoch}'))
+
+        if os.path.exists(mAP_val_output_dir):
+            os.system(f"rm -rf {mAP_val_output_dir}")
+        os.makedirs(mAP_val_output_dir)
+        
+        self.log_info(fl_ctx, f"mAP_val_input_dir: {mAP_val_input_dir}, mAP_val_output_dir: {mAP_val_output_dir}")
+        metric = calculate_mAP(mAP_val_input_dir, mAP_val_output_dir)
+        self.log_info(fl_ctx,"Validation complete.")
         return metric
 
     def display_train_trackers(self, trackers, fl_ctx, is_overall=False):
@@ -285,10 +354,8 @@ class ParkingFL_Trainer(Executor):
         import matplotlib.pyplot as plt
         import os
 
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        outputs_dir = os.path.abspath(os.path.join(dir_path, '../outputs'))
-        if not os.path.exists(outputs_dir):
-            os.makedirs(outputs_dir)
+        if not os.path.exists(self.outputs_dir):
+            os.makedirs(self.outputs_dir)
         
         # print(trackers)
         # Display train loss graph.
@@ -299,7 +366,7 @@ class ParkingFL_Trainer(Executor):
         plt.title('Train loss vs Epochs')
         # Save the graph to the disk
         save_file_name = 'normal_train_loss_overall.png' if is_overall else f'normal_train_loss_{self.__num_times_to_call_trainer}.png'
-        plt.savefig(os.path.abspath(os.path.join(outputs_dir, save_file_name)))
+        plt.savefig(os.path.abspath(os.path.join(self.outputs_dir, save_file_name)))
 
         # Display validation accuracy graph.
         plt.figure() # New graph
@@ -309,7 +376,7 @@ class ParkingFL_Trainer(Executor):
         plt.title('Validation accuracy vs Epochs')
         # Save the graph to the disk
         save_file_name = 'normal_val_acc_overall.png' if is_overall else f'normal_val_acc_{self.__num_times_to_call_trainer}.png'
-        plt.savefig(os.path.abspath(os.path.join(outputs_dir, save_file_name)))
+        plt.savefig(os.path.abspath(os.path.join(self.outputs_dir, save_file_name)))
 
     def _save_local_model(self, fl_ctx: FLContext):
         run_dir = fl_ctx.get_engine().get_workspace().get_run_dir(fl_ctx.get_prop(ReservedKey.RUN_NUM))

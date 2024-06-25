@@ -2,10 +2,8 @@
   "format_version": 2,
   "datasetpath": "../../../data",
   "num_classes": 3,
-  "train_val_split" : 0.8,
-  "random_seed": 3,
-  "batch_size": 1,
-  "num_workers_dl": 1,
+  "batch_size": 12,
+  "num_workers_dl": 4,
   "executors": [
     {
       "tasks": ["train", "submit_model", "get_weights"],

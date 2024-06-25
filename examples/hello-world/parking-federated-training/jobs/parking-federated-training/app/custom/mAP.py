@@ -6,13 +6,22 @@ import os
 import shutil
 import operator
 import sys
-import argparse
+# import argparse
 import math
 
 import numpy as np
 
-def calculate_mAP(inputs_dir, outputs_dir):
-
+def calculate_mAP(inputs_dir, outputs_dir, ignore=None, set_class_iou=None, no_plot=False, quiet=False):
+    """
+    Inputs:
+        - inputs_dir: The directory containing the ground-truth and detection-results directories.
+        - outputs_dir: The directory where the output files will be saved.
+        - ignore: A list of classes to ignore.
+        - set_class_iou: A list of classes with specific IoU.
+        - no_plot: A boolean indicating whether to show the plot or not.
+        - quiet: A boolean indicating whether to show minimalistic console output or not.
+    """
+    print("inputs_dir: ", inputs_dir, "outputs_dir: ", outputs_dir)
     ret_metrics = {'ap': {},
                    'precision': {},
                     'recall': {},
@@ -21,16 +30,6 @@ def calculate_mAP(inputs_dir, outputs_dir):
                   }
 
     MINOVERLAP = 0.5 # default value (defined in the PASCAL VOC2012 challenge)
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-na', '--no-animation', help="no animation is shown.", action="store_true")
-    parser.add_argument('-np', '--no-plot', help="no plot is shown.", action="store_true")
-    parser.add_argument('-q', '--quiet', help="minimalistic console output.", action="store_true")
-    # argparse receiving list of classes to be ignored (e.g., python main.py --ignore person book)
-    parser.add_argument('-i', '--ignore', nargs='+', type=str, help="ignore a list of classes.")
-    # argparse receiving list of classes with specific IoU (e.g., python main.py --set-class-iou person 0.7)
-    parser.add_argument('--set-class-iou', nargs='+', type=str, help="set IoU for a specific class.")
-    args = parser.parse_args()
 
     '''
         0,0 ------> x (width)
@@ -45,11 +44,11 @@ def calculate_mAP(inputs_dir, outputs_dir):
     '''
 
     # if there are no classes to ignore then replace None by empty list
-    if args.ignore is None:
-        args.ignore = []
+    if ignore is None:
+        ignore = []
 
     specific_iou_flagged = False
-    if args.set_class_iou is not None:
+    if set_class_iou is not None:
         specific_iou_flagged = True
 
     # make sure that the cwd() is the location of the python script (so that every path makes sense)
@@ -63,30 +62,30 @@ def calculate_mAP(inputs_dir, outputs_dir):
         for dirpath, dirnames, files in os.walk(IMG_PATH):
             if not files:
                 # no image files found
-                args.no_animation = True
+                no_animation = True
     else:
-        args.no_animation = True
+        no_animation = True
 
     # try to import OpenCV if the user didn't choose the option --no-animation
     show_animation=False
-    if not args.no_animation:
+    if not no_animation:
         try:
             import cv2
             show_animation = True
         except ImportError:
             print("\"opencv-python\" not found, please install to visualize the results.")
-            args.no_animation = True
+            no_animation = True
 
     # try to import Matplotlib if the user didn't choose the option --no-plot
     draw_plot = False
-    if not args.no_plot:
+    if not no_plot:
         try:
             import matplotlib.pyplot as plt
             
             draw_plot = True
         except ImportError:
             print("\"matplotlib\" not found, please install it to get the resulting plots.")
-            args.no_plot = True
+            no_plot = True
 
 
     def log_average_miss_rate(prec, rec, num_images):
@@ -404,7 +403,7 @@ def calculate_mAP(inputs_dir, outputs_dir):
                 error_msg += "by running the script \"remove_space.py\" or \"rename_class.py\" in the \"extra/\" folder."
                 error(error_msg)
             # check if class is in the ignore list, if yes skip
-            if class_name in args.ignore:
+            if class_name in ignore:
                 continue
             bbox = left + " " + top + " " + right + " " +bottom
             if is_difficult:
@@ -446,16 +445,16 @@ def calculate_mAP(inputs_dir, outputs_dir):
         e.g. check if class exists
     """
     if specific_iou_flagged:
-        n_args = len(args.set_class_iou)
+        n_args = len(set_class_iou)
         error_msg = \
             '\n --set-class-iou [class_1] [IoU_1] [class_2] [IoU_2] [...]'
         if n_args % 2 != 0:
             error('Error, missing arguments. Flag usage:' + error_msg)
         # [class_1] [IoU_1] [class_2] [IoU_2]
         # specific_iou_classes = ['class_1', 'class_2']
-        specific_iou_classes = args.set_class_iou[::2] # even
+        specific_iou_classes = set_class_iou[::2] # even
         # iou_list = ['IoU_1', 'IoU_2']
-        iou_list = args.set_class_iou[1::2] # odd
+        iou_list = set_class_iou[1::2] # odd
         if len(specific_iou_classes) != len(iou_list):
             error('Error, missing arguments. Flag usage:' + error_msg)
         for tmp_class in specific_iou_classes:
@@ -696,7 +695,7 @@ def calculate_mAP(inputs_dir, outputs_dir):
             rounded_prec = [ '%.2f' % elem for elem in prec ]
             rounded_rec = [ '%.2f' % elem for elem in rec ]
             output_file.write(text + "\n Precision: " + str(rounded_prec) + "\n Recall :" + str(rounded_rec) + "\n\n")
-            if not args.quiet:
+            if not quiet:
                 print(text)
             ap_dictionary[class_name] = ap
 
@@ -783,7 +782,7 @@ def calculate_mAP(inputs_dir, outputs_dir):
         for line in lines_list:
             class_name = line.split()[0]
             # check if class is in the ignore list, if yes skip
-            if class_name in args.ignore:
+            if class_name in ignore:
                 continue
             # count that object
             if class_name in det_counter_per_class:
