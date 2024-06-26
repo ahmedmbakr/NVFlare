@@ -3,7 +3,7 @@
 # 2. https://medium.com/fullstackai/how-to-train-an-object-detector-with-your-own-coco-dataset-in-pytorch-319e7090da5
 
 
-import os
+import os, sys
 import torch
 import torch.utils.data
 import torchvision
@@ -13,13 +13,19 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 import pklot_trainer_config as config
 from PkLotDataLoader import PklotDataSet, collate_fn
 
+dir_path = os.path.dirname(os.path.realpath(__file__))
+mAP_path = os.path.abspath(os.path.join(dir_path, 'jobs/parking-federated-training/app/custom'))
+print("mAP path: ", mAP_path)
+sys.path.append(mAP_path)
+import mAP
+
 class_id_to_name_dict = {1: "Space-empty", 2: "Space-occupied"}
 
 class PklotTrainer:
 
     def __init__(self, continue_training=False):
         self.continue_training = continue_training
-
+        self.outputs_dir = os.path.abspath(os.path.join(dir_path, 'outputs'))
         # create own Dataset
         train_pklot_dataset = PklotDataSet(
             root_path=config.train_data_dir, annotation_path=config.train_coco, transforms=self.get_transform()
@@ -84,11 +90,13 @@ class PklotTrainer:
         return model
     
     def local_train(self):
-        metrics = [] # The metrics for each epoch
         len_dataloader = len(self.train_data_loader)
         # Training
         running_loss = 0.0
+        trackers = {"train_loss": [], "val_acc": []}
         for epoch in range(config.num_epochs):
+            import time
+            start_time = time.time()
             print(f"Epoch: {epoch}/{config.num_epochs}")
             self.model.train()
             i = 0
@@ -112,21 +120,27 @@ class PklotTrainer:
             print("\n")
             print(f"Epoch {epoch} Loss: {epoch_loss}")
             # Validation
-            metric = self.validate(self.val_data_loader)
-            metric['epoch'] = epoch
-            metric['loss'] = epoch_loss
-            metrics.append(metric)
+            metric = self.validate(self.val_data_loader, epoch, config.mAP_detection_threshold)
+            trackers['train_loss'].append(epoch_loss)
+            trackers['val_acc'].append(metric)
             import pickle
-            pickle.dump(metrics, open(config.mAP_metric_file_path, "wb"))
+            pickle.dump(trackers, open(config.mAP_metric_file_path, "wb"))
             # Write the metrics as a json file
             import json
             with open(config.mAP_metric_file_path.replace(".p", ".json"), "w") as f:
-                json.dump(metrics, f)
+                json.dump(trackers, f)
             # Save the model
             model_path = os.path.join(config.models_folder, f"model_{epoch}.pth")
             torch.save(self.model.state_dict(), model_path)
+
+            epoch_end_time = time.time()
+            from datetime import timedelta
+            diff_sec = epoch_end_time - start_time
+            num_remaining_epochs = config.num_epochs - epoch - 1
+            td = timedelta(seconds=diff_sec)
+            print(f"Epoch {epoch} took {td}. The remaining time is {td * num_remaining_epochs}")
     
-    def validate(self, val_loader, detection_threshold=0.5):
+    def validate(self, val_loader, epoch, detection_threshold=0.5):
         """
         This function is used to validate the model on the validation set.
         It calculates the mAP score for the model.
@@ -137,8 +151,14 @@ class PklotTrainer:
         - metric: Metrics after running mAP calculation. 1) AP per class, 2) precision per class, 3) recall per class, 4) log average miss rate per class, 5) mAP
         """
         # Remove the files in the input directory needed by mAP calculation
-        os.system(f"rm -rf {config.mAP_val_prediction_directory}/*.txt")
-        os.system(f"rm -rf {config.mAP_val_gt_directory}/*.txt")
+        if os.path.exists(config.mAP_val_prediction_directory):
+            os.system(f"rm -rf {config.mAP_val_prediction_directory}")
+        os.makedirs(config.mAP_val_prediction_directory)
+
+        if os.path.exists(config.mAP_val_gt_directory):
+            os.system(f"rm -rf {config.mAP_val_gt_directory}")
+        os.makedirs(config.mAP_val_gt_directory)
+
         self.model.eval()  # Set the model to evaluation mode
         device = self.device
         len_val_loader = len(val_loader)
@@ -188,8 +208,15 @@ class PklotTrainer:
                 if batch_id % 10 == 0:
                     print(f"Validating batch: {batch_id} / {len_val_loader}", end="\r")
         print("\n")
-        from mAP import calculate_mAP
-        metric = calculate_mAP('input', 'outputs') # TODO: AB: Add the folder names as part of the configuration
+
+        mAP_val_input_dir = os.path.abspath(os.path.join(config.mAP_val_prediction_directory, '..'))
+        mAP_val_output_dir = os.path.abspath(os.path.join(self.outputs_dir, f'mAPOutputs/{epoch}'))
+
+        if os.path.exists(mAP_val_output_dir):
+            os.system(f"rm -rf {mAP_val_output_dir}")
+        os.makedirs(mAP_val_output_dir)
+        
+        metric = mAP.calculate_mAP(mAP_val_input_dir, mAP_val_output_dir)
         print("Validation complete.")
         return metric
 

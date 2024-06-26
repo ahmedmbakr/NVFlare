@@ -3,6 +3,7 @@ simulator-example/
 examples/hello-world/parking-federated-training/input/
 examples/hello-world/parking-federated-training/outputs/
 examples/hello-world/parking-federated-training/models/
+**/mAPInput/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
