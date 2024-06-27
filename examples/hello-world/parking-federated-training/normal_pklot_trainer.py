@@ -92,9 +92,9 @@ class PklotTrainer:
     def local_train(self):
         len_dataloader = len(self.train_data_loader)
         # Training
-        running_loss = 0.0
         trackers = {"train_loss": [], "val_acc": []}
         for epoch in range(config.num_epochs):
+            running_loss = 0.0
             import time
             start_time = time.time()
             print(f"Epoch: {epoch}/{config.num_epochs}")
@@ -127,7 +127,7 @@ class PklotTrainer:
             pickle.dump(trackers, open(config.mAP_metric_file_path, "wb"))
             # Write the metrics as a json file
             import json
-            with open(config.mAP_metric_file_path.replace(".p", ".json"), "w") as f:
+            with open(config.mAP_metric_file_path.replace(".pkl", ".json"), "w") as f:
                 json.dump(trackers, f)
             # Save the model
             model_path = os.path.join(config.models_folder, f"model_{epoch}.pth")
