@@ -1,7 +1,7 @@
 # Main Sources:
 # 1. https://github.com/tkshnkmr/frcnn_medium_sample/blob/master/utils.py
 # 2. https://medium.com/fullstackai/how-to-train-an-object-detector-with-your-own-coco-dataset-in-pytorch-319e7090da5
-
+# 3. https://pytorch.org/vision/main/models/generated/torchvision.models.detection.fasterrcnn_resnet50_fpn.html
 
 import os, sys
 import torch
@@ -23,7 +23,7 @@ class_id_to_name_dict = {1: "Space-empty", 2: "Space-occupied"}
 
 class PklotTrainer:
 
-    def __init__(self, continue_training=False):
+    def __init__(self, inference=False, continue_training=False):
         self.continue_training = continue_training
         self.outputs_dir = os.path.abspath(os.path.join(dir_path, 'outputs'))
         # create own Dataset
@@ -55,7 +55,7 @@ class PklotTrainer:
         # select device (whether GPU or CPU)
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-        self.model = self.get_model(config.num_classes)
+        self.model = self.get_model(config.num_classes, config.pre_trained_model_allowed)
 
         # move model to the right device
         self.model.to(self.device)
@@ -67,21 +67,36 @@ class PklotTrainer:
         )
 
         # If models folder exist, remove it, then create another one
-        if self.continue_training == False and os.path.exists(config.models_folder):
-            os.system(f"rm -rf {config.models_folder}")
-        os.makedirs(config.models_folder)
+        if inference == False:
+            if self.continue_training == False and os.path.exists(config.models_folder):
+                os.system(f"rm -rf {config.models_folder}")
+            os.makedirs(config.models_folder)
 
 
     # In my case, just added ToTensor
     def get_transform(self):
-        custom_transforms = [] # TODO: AB: If you are going to use a trained model, make sure that the normalization is the same as the one used during training
-        custom_transforms.append(torchvision.transforms.ToTensor())
-        return torchvision.transforms.Compose(custom_transforms)
+        if config.pre_trained_model_allowed:
+            # From: https://pytorch.org/vision/0.18/auto_examples/others/plot_repurposing_annotations.html#sphx-glr-auto-examples-others-plot-repurposing-annotations-py
+            from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
+            weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT
+            tranforms = weights.transforms()
+            return tranforms
+        else:
+            custom_transforms = [] # TODO: AB: If you are going to use a trained model, make sure that the normalization is the same as the one used during training
+            custom_transforms.append(torchvision.transforms.ToTensor())
+            return torchvision.transforms.Compose(custom_transforms)
 
 
-    def get_model(self, num_classes):
+    def get_model(self, num_classes, pretrained):
+        # https://pytorch.org/vision/main/models/generated/torchvision.models.detection.fasterrcnn_resnet50_fpn.html
         # load an instance segmentation model pre-trained pre-trained on COCO
-        model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=False) # TODO: AB: Experiment with this. If you want to use a pre-trained model, set it to True
+        model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=pretrained)
+
+        # Try this method and check the difference TODO: AB: Check the difference between the two methods
+        # from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
+        # weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT
+        # model = fasterrcnn_resnet50_fpn(weights=weights, progress=False)
+
         # get number of input features for the classifier
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         # replace the pre-trained head with a new one
