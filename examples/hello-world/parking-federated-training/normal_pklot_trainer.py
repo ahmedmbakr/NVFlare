@@ -90,12 +90,13 @@ class PklotTrainer:
     def get_model(self, num_classes, pretrained):
         # https://pytorch.org/vision/main/models/generated/torchvision.models.detection.fasterrcnn_resnet50_fpn.html
         # load an instance segmentation model pre-trained pre-trained on COCO
-        model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=pretrained)
-
-        # Try this method and check the difference TODO: AB: Check the difference between the two methods
-        # from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
-        # weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT
-        # model = fasterrcnn_resnet50_fpn(weights=weights, progress=False)
+        if not pretrained:
+            model = torchvision.models.detection.fasterrcnn_resnet50_fpn()
+        else:
+            # Try this method and check the difference TODO: AB: Check the difference between the two methods
+            from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
+            weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT
+            model = fasterrcnn_resnet50_fpn(weights=weights, progress=False)
 
         # get number of input features for the classifier
         in_features = model.roi_heads.box_predictor.cls_score.in_features
