@@ -147,7 +147,7 @@ def transform_into_COCO(pklot_anno_path, train_percent, val_percent, test_percen
             json.dump(json_file, f)
             print("Done writing to: ", json_file_path)
 
-    from split_by_parking_lot import analyze_coco_file
+    from split_pklot_by_parking_lot import analyze_coco_file
 
     for json_file_path in json_files_paths:
         analyze_coco_file(json_file_path)
@@ -161,6 +161,5 @@ if __name__ == "__main__":
     camera_csv_files_path_pattern = '/home/bakr/CNR-EXT_FULL_IMAGE_1000x750/camera{}.csv'
     annotations_csv_file_path = '/home/bakr/CNR-EXT_FULL_IMAGE_1000x750/CNRPark+EXT.csv'
     num_cameras = 9
-
 
     transform_into_COCO(test_annotations_pklot_path, train_percent, val_percent, test_percent, camera_csv_files_path_pattern, num_cameras, annotations_csv_file_path, output_dir)
