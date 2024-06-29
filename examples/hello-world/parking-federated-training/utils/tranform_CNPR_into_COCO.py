@@ -26,14 +26,17 @@ def _remove_old_files_and_create_paths(output_dir):
     os.makedirs(test_path)
     print("Created folders: {}, {}, and {}".format(train_path, valid_path, test_path))
 
-def _add_common_parts_to_json_files(data):
-    new_data = {}
-    new_data["info"] = data["info"]
-    new_data["licenses"] = data["licenses"]
-    new_data["categories"] = data["categories"]
-    new_data["images"] = []
-    new_data["annotations"] = []
-    return new_data
+def _add_common_parts_to_json_files(data, train_valid_test_names):
+    json_files = {}
+    for train_valid_test_name in train_valid_test_names:
+        new_data = {}
+        new_data["info"] = data["info"]
+        new_data["licenses"] = data["licenses"]
+        new_data["categories"] = data["categories"]
+        new_data["images"] = []
+        new_data["annotations"] = []
+        json_files[train_valid_test_name] = new_data
+    return json_files
 
 def _parse_cameras_csv_files(camera_csv_files_path_pattern, num_cameras):
     cameras_csv_dict = {}
@@ -58,11 +61,14 @@ def _parse_cameras_csv_files(camera_csv_files_path_pattern, num_cameras):
 
 def transform_into_COCO(pklot_anno_path, train_percent, val_percent, test_percent, camera_csv_files_path_pattern, num_cameras, annotations_csv_file_path, output_dir):
     _remove_old_files_and_create_paths(output_dir)
+    train_valid_test_names = ['train', 'valid', 'test']
+    import random
+    random.seed(17) # To get the same results from the random generator
     with open(pklot_anno_path, "r") as f:
         import json
         pklot_coco_data = json.load(f)
 
-        json_file = _add_common_parts_to_json_files(pklot_coco_data)
+        json_files = _add_common_parts_to_json_files(pklot_coco_data, train_valid_test_names)
         cameras_csv_dict = _parse_cameras_csv_files(camera_csv_files_path_pattern, num_cameras)
 
         # Extract the directory path from `camera_csv_files_path_pattern`
@@ -70,21 +76,26 @@ def transform_into_COCO(pklot_anno_path, train_percent, val_percent, test_percen
         # Loop through all the directories many levels deep until we reach the jpg images
         import glob
         images = glob.glob(os.path.join(images_dir, "**/*.jpg"), recursive=True)
-        global_image_id = 0
+        global_image_ids = {'train': 0, 'valid': 0, 'test': 0}
         img_name_to_id = {}
+        img_name_to_set_selector = {} # To keep track if this image is used for train / valid / test
         for image_name in images:
+            train_valid_test_selector = random.choices(train_valid_test_names, [train_percent, val_percent, test_percent])[0] # Random choice based on the weights
+            if not (train_valid_test_selector == 'train'):
+                x = 3
             image_dict = {
-                "id": global_image_id,
+                "id": global_image_ids[train_valid_test_selector],
                 "file_name": image_name,
                 "width": 1000,
                 "height": 750,
                 "date_captured": "2024-06-28 19:00:00", # TODO: AB: Fix this
             }
-            img_name_to_id[image_name] = global_image_id
-            json_file["images"].append(image_dict)
-            global_image_id += 1
+            img_name_to_id[image_name] = global_image_ids[train_valid_test_selector]
+            img_name_to_set_selector[image_name] = train_valid_test_selector
+            json_files[train_valid_test_selector]["images"].append(image_dict)
+            global_image_ids[train_valid_test_selector] += 1
 
-    global_annotation_id = 0
+    global_annotation_ids = {'train': 0, 'valid': 0, 'test': 0}
     with open(annotations_csv_file_path, "r") as f:
         import csv
         csv_reader = csv.reader(f, delimiter=',')
@@ -105,10 +116,11 @@ def transform_into_COCO(pklot_anno_path, train_percent, val_percent, test_percen
             image_name = image_name[:16].replace(".", "")
             image_full_path = os.path.join(images_dir, image_folder, image_name + ".jpg")
             image_id = img_name_to_id[image_full_path]
+            train_valid_test_selector = img_name_to_set_selector[image_full_path]
             lot_information = cameras_csv_dict[int(camera_id)][slot_id] # TODO: AB: This might be changed later to string
             area = lot_information["w"] * lot_information["h"]
             an_annotation = {
-                "id": global_annotation_id,
+                "id": global_annotation_ids[train_valid_test_selector],
                 "image_id": image_id,
                 "category_id": is_occupied + 1,
                 "bbox": [
@@ -121,16 +133,24 @@ def transform_into_COCO(pklot_anno_path, train_percent, val_percent, test_percen
                 "segmentation": [],
                 "iscrowd": 0
             }
-            json_file["annotations"].append(an_annotation)
-            global_annotation_id += 1
-        print("ok")
-            # full_image_path = os.path.join(images_dir, )
+            json_files[train_valid_test_selector]["annotations"].append(an_annotation)
+            global_annotation_ids[train_valid_test_selector] += 1
+    
+    # Write JSON files
+    import json
+    train_json_file_path = os.path.join(output_dir, "train/_annotations.coco.json")
+    valid_json_file_path = os.path.join(output_dir, "valid/_annotations.coco.json")
+    test_json_file_path = os.path.join(output_dir, "test/_annotations.coco.json")
+    json_files_paths = [train_json_file_path, valid_json_file_path, test_json_file_path]
+    for json_file, json_file_path in zip(json_files.values(), json_files_paths):
+        with open(json_file_path, "w") as f:
+            json.dump(json_file, f)
+            print("Done writing to: ", json_file_path)
 
+    from split_by_parking_lot import analyze_coco_file
 
-
-
-
-
+    for json_file_path in json_files_paths:
+        analyze_coco_file(json_file_path)
 
 if __name__ == "__main__":
     test_annotations_pklot_path = '/home/bakr/pklot/test/_annotations.coco.json'
