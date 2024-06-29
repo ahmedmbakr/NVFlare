@@ -11,7 +11,7 @@ import torchvision.transforms.functional as F
 import sys, os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.abspath(os.path.join(dir_path, '..')))
-import normal_pklot_trainer
+import normal_trainer
 import pklot_trainer_config as config
 
 plt.rcParams["savefig.bbox"] = 'tight'
@@ -35,12 +35,13 @@ def get_transforms(pretrained=True): # TODO: AB: Consider for now that we only u
 
 if __name__ == "__main__":
     # Read image:
-    image_path = "/home/bakr/pklot/train/2013-03-06_09_00_03_jpg.rf.e2ebe82b00611d3e7d1710765c640507.jpg"
-    model_path = "/home/bakr/NVFlare/examples/hello-world/parking-federated-training/models/model_8.pth"
-    score_threshold = .8
+    # image_path = "/home/bakr/pklot/train/2013-03-06_09_00_03_jpg.rf.e2ebe82b00611d3e7d1710765c640507.jpg"
+    image_path = '/home/bakr/CNR-EXT_FULL_IMAGE_1000x750/FULL_IMAGE_1000x750/SUNNY/2015-11-12/camera1/2015-11-12_0909.jpg'
+    model_path = "/home/bakr/NVFlare/examples/hello-world/parking-federated-training/models/model_3.pth"
+    score_threshold = .2
 
     # Load the model
-    trainer = normal_pklot_trainer.ParkingTrainer(inference=True)
+    trainer = normal_trainer.ParkingTrainer(config=config, inference=True)
     model = trainer.get_model(config.num_classes, pretrained=True)
     model.load_state_dict(torch.load(model_path))
     model.eval()
@@ -58,8 +59,8 @@ if __name__ == "__main__":
     model = model.eval()
     outputs = model(transformed_images)
 
-    dogs_with_boxes = [
+    image_with_boxes = [
         draw_bounding_boxes(dog_int, boxes=output['boxes'][output['scores'] > score_threshold], width=4)
         for dog_int, output in zip(images_list, outputs)
     ]
-    show(dogs_with_boxes)
+    show(image_with_boxes)

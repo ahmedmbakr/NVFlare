@@ -22,39 +22,40 @@ class_id_to_name_dict = {1: "Space-empty", 2: "Space-occupied"}
 
 class ParkingTrainer:
 
-    def __init__(self, inference=False, continue_training=False):
+    def __init__(self, config, inference=False, continue_training=False):
+        self.config = config
         self.continue_training = continue_training
         self.outputs_dir = os.path.abspath(os.path.join(dir_path, 'outputs'))
         # create own Dataset
         train_pklot_dataset = PklotDataSet(
-            root_path=config.train_data_dir, annotation_path=config.train_coco, transforms=self.get_transform()
+            root_path=self.config.train_data_dir, annotation_path=self.config.train_coco, transforms=self.get_transform()
         )
 
         val_pklot_dataset = PklotDataSet(
-            root_path=config.val_data_dir, annotation_path=config.val_coco, transforms=self.get_transform()
+            root_path=self.config.val_data_dir, annotation_path=self.config.val_coco, transforms=self.get_transform()
         )
 
          # own DataLoader
         self.train_data_loader = torch.utils.data.DataLoader(
             train_pklot_dataset,
-            batch_size=config.train_batch_size,
-            shuffle=config.train_shuffle_dl,
-            num_workers=config.num_workers_dl,
+            batch_size=self.config.train_batch_size,
+            shuffle=self.config.train_shuffle_dl,
+            num_workers=self.config.num_workers_dl,
             collate_fn=collate_fn,
         )
 
         self.val_data_loader = torch.utils.data.DataLoader(
             val_pklot_dataset,
-            batch_size=config.train_batch_size,
+            batch_size=self.config.train_batch_size,
             shuffle=False,
-            num_workers=config.num_workers_dl,
+            num_workers=self.config.num_workers_dl,
             collate_fn=collate_fn,
         )
 
         # select device (whether GPU or CPU)
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-        self.model = self.get_model(config.num_classes, config.pre_trained_model_allowed)
+        self.model = self.get_model(self.config.num_classes, self.config.pre_trained_model_allowed)
 
         # move model to the right device
         self.model.to(self.device)
@@ -62,19 +63,19 @@ class ParkingTrainer:
         # parameters
         params = [p for p in self.model.parameters() if p.requires_grad]
         self.optimizer = torch.optim.SGD(
-            params, lr=config.lr, momentum=config.momentum, weight_decay=config.weight_decay
+            params, lr=self.config.lr, momentum=self.config.momentum, weight_decay=self.config.weight_decay
         )
 
         # If models folder exist, remove it, then create another one
         if inference == False:
-            if self.continue_training == False and os.path.exists(config.models_folder):
-                os.system(f"rm -rf {config.models_folder}")
-            os.makedirs(config.models_folder)
+            if self.continue_training == False and os.path.exists(self.config.models_folder):
+                os.system(f"rm -rf {self.config.models_folder}")
+            os.makedirs(self.config.models_folder)
 
 
     # In my case, just added ToTensor
     def get_transform(self):
-        if config.pre_trained_model_allowed:
+        if self.config.pre_trained_model_allowed:
             # From: https://pytorch.org/vision/0.18/auto_examples/others/plot_repurposing_annotations.html#sphx-glr-auto-examples-others-plot-repurposing-annotations-py
             from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
             weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT
@@ -108,11 +109,11 @@ class ParkingTrainer:
         len_dataloader = len(self.train_data_loader)
         # Training
         trackers = {"train_loss": [], "val_acc": []}
-        for epoch in range(config.num_epochs):
+        for epoch in range(self.config.num_epochs):
             running_loss = 0.0
             import time
             start_time = time.time()
-            print(f"Epoch: {epoch}/{config.num_epochs}")
+            print(f"Epoch: {epoch}/{self.config.num_epochs}")
             self.model.train()
             i = 0
             for imgs, annotations in self.train_data_loader:
@@ -135,23 +136,23 @@ class ParkingTrainer:
             print("\n")
             print(f"Epoch {epoch} Loss: {epoch_loss}")
             # Validation
-            metric = self.validate(self.val_data_loader, epoch, config.mAP_detection_threshold)
+            metric = self.validate(self.val_data_loader, epoch, self.config.mAP_detection_threshold)
             trackers['train_loss'].append(epoch_loss)
             trackers['val_acc'].append(metric)
             import pickle
-            pickle.dump(trackers, open(config.mAP_metric_file_path, "wb"))
+            pickle.dump(trackers, open(self.config.mAP_metric_file_path, "wb"))
             # Write the metrics as a json file
             import json
-            with open(config.mAP_metric_file_path.replace(".pkl", ".json"), "w") as f:
+            with open(self.config.mAP_metric_file_path.replace(".pkl", ".json"), "w") as f:
                 json.dump(trackers, f)
             # Save the model
-            model_path = os.path.join(config.models_folder, f"model_{epoch}.pth")
+            model_path = os.path.join(self.config.models_folder, f"model_{epoch}.pth")
             torch.save(self.model.state_dict(), model_path)
 
             epoch_end_time = time.time()
             from datetime import timedelta
             diff_sec = epoch_end_time - start_time
-            num_remaining_epochs = config.num_epochs - epoch - 1
+            num_remaining_epochs = self.config.num_epochs - epoch - 1
             td = timedelta(seconds=diff_sec)
             print(f"Epoch {epoch} took {td}. The remaining time is {td * num_remaining_epochs}")
     
@@ -166,13 +167,13 @@ class ParkingTrainer:
         - metric: Metrics after running mAP calculation. 1) AP per class, 2) precision per class, 3) recall per class, 4) log average miss rate per class, 5) mAP
         """
         # Remove the files in the input directory needed by mAP calculation
-        if os.path.exists(config.mAP_val_prediction_directory):
-            os.system(f"rm -rf {config.mAP_val_prediction_directory}")
-        os.makedirs(config.mAP_val_prediction_directory)
+        if os.path.exists(self.config.mAP_val_prediction_directory):
+            os.system(f"rm -rf {self.config.mAP_val_prediction_directory}")
+        os.makedirs(self.config.mAP_val_prediction_directory)
 
-        if os.path.exists(config.mAP_val_gt_directory):
-            os.system(f"rm -rf {config.mAP_val_gt_directory}")
-        os.makedirs(config.mAP_val_gt_directory)
+        if os.path.exists(self.config.mAP_val_gt_directory):
+            os.system(f"rm -rf {self.config.mAP_val_gt_directory}")
+        os.makedirs(self.config.mAP_val_gt_directory)
 
         self.model.eval()  # Set the model to evaluation mode
         device = self.device
@@ -201,13 +202,13 @@ class ParkingTrainer:
 
                     unique_image_id = batch_id * len(imgs) + i
                     file_name = f'{unique_image_id}.txt'
-                    prediction_file_path = os.path.join(config.mAP_val_prediction_directory, file_name)
+                    prediction_file_path = os.path.join(self.config.mAP_val_prediction_directory, file_name)
                     with open(prediction_file_path, 'w') as f:
                         for box, label_id, score in zip(pred_boxes, pred_labels, pred_scores):
                             label_name = class_id_to_name_dict[label_id]
                             f.write(f'{label_name} {score} {box[0]} {box[1]} {box[2]} {box[3]}\n')
 
-                    gt_file_path = os.path.join(config.mAP_val_gt_directory, file_name)
+                    gt_file_path = os.path.join(self.config.mAP_val_gt_directory, file_name)
                     with open(gt_file_path, 'w') as f:
                         for box, label_id in zip(gt_boxes, gt_labels):
                             label_name = class_id_to_name_dict[label_id]
@@ -224,7 +225,7 @@ class ParkingTrainer:
                     print(f"Validating batch: {batch_id} / {len_val_loader}", end="\r")
         print("\n")
 
-        mAP_val_input_dir = os.path.abspath(os.path.join(config.mAP_val_prediction_directory, '..'))
+        mAP_val_input_dir = os.path.abspath(os.path.join(self.config.mAP_val_prediction_directory, '..'))
         mAP_val_output_dir = os.path.abspath(os.path.join(self.outputs_dir, f'mAPOutputs/{epoch}'))
 
         if os.path.exists(mAP_val_output_dir):
@@ -241,5 +242,5 @@ if __name__ == "__main__":
         import pklot_trainer_config as config
     elif PKLOT_CNR_TRAINING_SELECTOR == 'CNR':
         import cnr_trainer_config as config
-    trainer = ParkingTrainer()
+    trainer = ParkingTrainer(config)
     trainer.local_train()
