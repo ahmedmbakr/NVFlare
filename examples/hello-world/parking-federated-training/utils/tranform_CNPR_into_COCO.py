@@ -81,14 +81,16 @@ def transform_into_COCO(pklot_anno_path, train_percent, val_percent, test_percen
         img_name_to_set_selector = {} # To keep track if this image is used for train / valid / test
         for image_name in images:
             train_valid_test_selector = random.choices(train_valid_test_names, [train_percent, val_percent, test_percent])[0] # Random choice based on the weights
-            if not (train_valid_test_selector == 'train'):
-                x = 3
+            image_file_name = os.path.basename(image_name)
+            date_captured = image_file_name[:10] # Get only the first 10 characters of the file name, which is the date in the format "YYYY-MM-DD"
+            date_captured += " " +image_file_name[11:13] + ":" + image_file_name[13:15] + ":00" # Add the time part of the file name
+            
             image_dict = {
                 "id": global_image_ids[train_valid_test_selector],
                 "file_name": image_name,
                 "width": 1000,
                 "height": 750,
-                "date_captured": "2024-06-28 19:00:00", # TODO: AB: Fix this
+                "date_captured": date_captured
             }
             img_name_to_id[image_name] = global_image_ids[train_valid_test_selector]
             img_name_to_set_selector[image_name] = train_valid_test_selector

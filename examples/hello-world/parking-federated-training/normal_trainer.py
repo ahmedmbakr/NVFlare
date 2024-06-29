@@ -10,7 +10,6 @@ import torchvision
 from PIL import Image
 from pycocotools.coco import COCO
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-import pklot_trainer_config as config
 from PkLotDataLoader import PklotDataSet, collate_fn
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -21,7 +20,7 @@ import mAP
 
 class_id_to_name_dict = {1: "Space-empty", 2: "Space-occupied"}
 
-class PklotTrainer:
+class ParkingTrainer:
 
     def __init__(self, inference=False, continue_training=False):
         self.continue_training = continue_training
@@ -237,5 +236,10 @@ class PklotTrainer:
         return metric
 
 if __name__ == "__main__":
-    trainer = PklotTrainer()
+    PKLOT_CNR_TRAINING_SELECTOR = 'CNR'
+    if PKLOT_CNR_TRAINING_SELECTOR == 'PKLOT':
+        import pklot_trainer_config as config
+    elif PKLOT_CNR_TRAINING_SELECTOR == 'CNR':
+        import cnr_trainer_config as config
+    trainer = ParkingTrainer()
     trainer.local_train()

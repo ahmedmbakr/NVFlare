@@ -36,11 +36,11 @@ def get_transforms(pretrained=True): # TODO: AB: Consider for now that we only u
 if __name__ == "__main__":
     # Read image:
     image_path = "/home/bakr/pklot/train/2013-03-06_09_00_03_jpg.rf.e2ebe82b00611d3e7d1710765c640507.jpg"
-    model_path = "/home/bakr/NVFlare/examples/hello-world/parking-federated-training/models/model_0.pth"
+    model_path = "/home/bakr/NVFlare/examples/hello-world/parking-federated-training/models/model_8.pth"
     score_threshold = .8
 
     # Load the model
-    trainer = normal_pklot_trainer.PklotTrainer(inference=True)
+    trainer = normal_pklot_trainer.ParkingTrainer(inference=True)
     model = trainer.get_model(config.num_classes, pretrained=True)
     model.load_state_dict(torch.load(model_path))
     model.eval()
