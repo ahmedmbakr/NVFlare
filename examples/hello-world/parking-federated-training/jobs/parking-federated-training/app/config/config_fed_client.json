@@ -2,7 +2,7 @@
   "format_version": 2,
   "datasetpath": "../../../data",
   "num_classes": 3,
-  "batch_size": 12,
+  "batch_size": 6,
   "num_workers_dl": 4,
   "executors": [
     {
@@ -12,7 +12,7 @@
         "args": {
           "data_path": "{datasetpath}",
           "lr": 0.001,
-          "epochs": 2,
+          "epochs": 1,
           "num_classes": "{num_classes}",
           "batch_size": "{batch_size}",
           "num_workers_dl": "{num_workers_dl}"

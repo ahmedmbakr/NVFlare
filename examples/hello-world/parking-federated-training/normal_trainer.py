@@ -26,6 +26,9 @@ class ParkingTrainer:
         self.config = config
         self.continue_training = continue_training
         self.outputs_dir = os.path.abspath(os.path.join(dir_path, 'outputs'))
+        if os.path.exists(self.outputs_dir):
+            os.system(f"rm -rf {self.outputs_dir}")
+        os.makedirs(self.outputs_dir)
         # create own Dataset
         train_pklot_dataset = PklotDataSet(
             root_path=self.config.train_data_dir, annotation_path=self.config.train_coco, transforms=self.get_transform()

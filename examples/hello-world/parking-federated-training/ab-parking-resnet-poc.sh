@@ -1,5 +1,5 @@
-NUM_CLIENTS=3
-GPU_ASSIGN_PER_CLIENT="0 1 2"
+NUM_CLIENTS=4
+GPU_ASSIGN_PER_CLIENT="0 1 2 3"
 export NVFLARE_POC_WORKSPACE="/tmp/bakr-nvflare/poc" # Set the workspace for the NVFlare PoC. You cannot change this variable name as it is used by the NVFlare PoC scripts.
 PROJECT_WORKSPACE_NAME="example_project/prod_00"
 
@@ -16,6 +16,7 @@ cp -r parking-federated-training/jobs/parking-federated-training/ ${NVFLARE_POC_
 ln -sf ~/pklot/PUCPR/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-1/data
 ln -sf ~/pklot/UFPR04/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-2/data
 ln -sf ~/pklot/UFPR05/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-3/data
+ln -sf ~/CNR-EXT/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-4/data
 
 cd ~/NVFlare
 cd ~/NVFlare/examples/hello-world
