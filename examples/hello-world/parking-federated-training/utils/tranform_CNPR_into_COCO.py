@@ -56,6 +56,11 @@ def _parse_cameras_csv_files(camera_csv_files_path_pattern, num_cameras):
                 y = int(row[2])
                 w = int(row[3])
                 h = int(row[4])
+                # The original coordinates use the image size of 2592x1944 version and need to be rescaled to match the 1000x750 version.
+                x = int(x * 1000 / 2592)
+                y = int(y * 750 / 1944)
+                w = int(w * 1000 / 2592)
+                h = int(h * 750 / 1944)
                 cameras_csv_dict[camera_id][slotId] = { "x": x, "y": y, "w": w, "h": h }
     return cameras_csv_dict
 
@@ -120,6 +125,8 @@ def transform_into_COCO(pklot_anno_path, train_percent, val_percent, test_percen
             image_id = img_name_to_id[image_full_path]
             train_valid_test_selector = img_name_to_set_selector[image_full_path]
             lot_information = cameras_csv_dict[int(camera_id)][slot_id] # TODO: AB: This might be changed later to string
+            # Show the image with boxes here. # TODO: AB: Continue from here tomorrow for debugging.
+
             area = lot_information["w"] * lot_information["h"]
             an_annotation = {
                 "id": global_annotation_ids[train_valid_test_selector],

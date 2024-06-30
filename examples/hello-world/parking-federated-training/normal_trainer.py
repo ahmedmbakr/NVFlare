@@ -105,7 +105,35 @@ class ParkingTrainer:
 
         return model
     
-    def local_train(self):
+    def __visualize_images_with_boxes_func(self, imgs, annotations):
+        import numpy as np
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as patches
+        import torchvision.transforms.functional as F
+        debug_images_directory = os.path.join(self.outputs_dir, "debug_images")
+        if os.path.exists(debug_images_directory): # If the folder exists, remove it. Then, create it again
+            os.system(f"rm -rf {debug_images_directory}")
+        os.makedirs(debug_images_directory)
+
+        
+        for i, img in enumerate(imgs):
+            fig, axs = plt.subplots()
+            img = img.permute(1, 2, 0).cpu().numpy()
+            img = F.to_pil_image(img)
+            axs.imshow(img)
+            for box, label in zip(annotations[i]['boxes'], annotations[i]['labels']):
+                x, y, w, h = box
+                edge_color = 'g' if label == 1 else 'r'
+                rect = patches.Rectangle((x, y), w - x, h - y, linewidth=1, edgecolor=edge_color, facecolor='none')
+                axs.add_patch(rect)
+            axs.axis('off')
+            # save image
+            image_path = os.path.join(debug_images_directory, f"image_{i}.png")
+            plt.savefig(image_path)
+            print(f"save image with boxes in: {image_path}")
+        print("Done Saving all the images with boxes in the directory: ", debug_images_directory)
+    
+    def local_train(self, visualize_images_with_boxes=False):
         len_dataloader = len(self.train_data_loader)
         # Training
         trackers = {"train_loss": [], "val_acc": []}
@@ -117,6 +145,8 @@ class ParkingTrainer:
             self.model.train()
             i = 0
             for imgs, annotations in self.train_data_loader:
+                if visualize_images_with_boxes: # AB: Used only for debugging
+                    self.__visualize_images_with_boxes_func(imgs, annotations)
                 imgs = list(img.to(self.device) for img in imgs)
                 annotations = [{k: v.to(self.device) for k, v in t.items()} for t in annotations]
                 if len(annotations) == 0:
