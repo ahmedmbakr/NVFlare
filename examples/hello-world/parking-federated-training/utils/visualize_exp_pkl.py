@@ -1,6 +1,6 @@
 # The purpose of this script is to visualize the experiment results stored in a pickle file.
 
-def visualize_pkl_file(pickle_file_path):
+def visualize_pkl_file(pickle_file_path, save_folder_path=None):
     """
     Visualize the data stored in a pickle file.
     Args:
@@ -22,6 +22,9 @@ def visualize_pkl_file(pickle_file_path):
     ax.set(xlabel="Epoch", ylabel="Loss", title="Loss vs Epoch")
     ax.grid()
     plt.show(block=True)
+    # save the figure
+    if save_folder_path is not None:
+        fig.savefig(save_folder_path + "/loss_vs_epoch.png")
     
     # Visualize the APs
     space_empty_ap = [x['ap']['Space-empty'] for x in data['val_acc']]
@@ -35,7 +38,7 @@ def visualize_pkl_file(pickle_file_path):
     ax.plot(epochs_arr, mAPs, label="mAP")
     ax.plot(max_mAP_index, max_mAP, 'xg') # Draw a mark on the maximum point
     # Put text on top of this point with the maximum mAP and make the text color green
-    ax.annotate(f"({max_mAP_index},{max_mAP:0.2f})", (max_mAP_index, max_mAP), textcoords="offset points", xytext=(0,5), ha='center', color='g')
+    ax.annotate(f"({max_mAP_index},{max_mAP:0.4f})", (max_mAP_index, max_mAP), textcoords="offset points", xytext=(0,5), ha='center', color='g')
     # Draw a vertical line from the maximum point to the x-axis
     ax.axvline(x=max_mAP_index, color='g', linestyle='--')
     ax.legend() #show legend
@@ -43,6 +46,9 @@ def visualize_pkl_file(pickle_file_path):
     ax.set(xlabel="Epoch", ylabel="mAP", title="mAP vs Epoch")
     ax.grid()
     plt.show(block=True)
+    # save the figure
+    if save_folder_path is not None:
+        fig.savefig(save_folder_path + "/mAP_vs_epoch.png")
 
     # Visualize log average miss rate
     log_avg_miss_rate_space_empty = [x['log_avg_miss_rate']['Space-empty'] for x in data['val_acc']]
@@ -54,12 +60,15 @@ def visualize_pkl_file(pickle_file_path):
     # Draw a vertical line from the maximum point to the x-axis
     ax.axvline(x=max_mAP_index, color='g', linestyle='--', label="Max mAP")
     # Put text on top of this point with the maximum mAP and make the text color green
-    ax.annotate(f"({max_mAP_index},{max_mAP:0.2f})", (max_mAP_index, max_mAP), textcoords="offset points", xytext=(27,-3), ha='center', color='g')
+    ax.annotate(f"({max_mAP_index},{max_mAP:0.4f})", (max_mAP_index, max_mAP), textcoords="offset points", xytext=(35,-3), ha='center', color='g')
     ax.legend() #show legend
     # Draw a mark on the maximum point
     ax.set(xlabel="Epoch", ylabel="Log Avg. Miss Rate", title="Log Average Miss Rate vs Epoch")
     ax.grid()
     plt.show(block=True)
+    # save the figure
+    if save_folder_path is not None:
+        fig.savefig(save_folder_path + "/log_avg_miss_rate_vs_epoch.png")
 
 
 
