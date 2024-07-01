@@ -48,6 +48,7 @@ class ParkingFL_Trainer(Executor):
         epochs,
         num_classes, 
         batch_size,
+        valid_detection_threshold,
         train_task_name=AppConstants.TASK_TRAIN,
         submit_model_task_name=AppConstants.TASK_SUBMIT_MODEL,
         exclude_vars=None,
@@ -79,8 +80,9 @@ class ParkingFL_Trainer(Executor):
         self._pre_train_task_name = pre_train_task_name
         self._submit_model_task_name = submit_model_task_name
         self._exclude_vars = exclude_vars
+        self._valid_detection_threshold = valid_detection_threshold
 
-        print(f"Number of classes: {num_classes}, Learning rate: {lr}, Number of epochs: {epochs}, Batch size: {batch_size}, data path: {data_path}")
+        print(f"Number of classes: {num_classes}, Learning rate: {lr}, Number of epochs: {epochs}, Batch size: {batch_size}, data path: {data_path}, valid_detection_threshold: {valid_detection_threshold}")
 
         # Training setup
         resnetNetwork = ResnetFasterRCNN(num_classes)
@@ -149,6 +151,7 @@ class ParkingFL_Trainer(Executor):
         os.makedirs(self.models_dir)
 
         self.__num_times_to_call_trainer = 0 # AB: This variable is incremented every time the train function is called.
+        self.global_epoch = 0 # AB: This number represents one flat number that combines both the round and local epoch numbers.
         self.overall_trackers = {"train_loss": [], "val_acc": []}
 
 
@@ -215,13 +218,13 @@ class ParkingFL_Trainer(Executor):
         # Set the model weights
         self.model.load_state_dict(state_dict=weights)
 
-        trackers = {"train_loss": [], "val_acc": []}
-
         len_dataloader = len(self._train_loader)
 
         # Basic training
-        for epoch in range(self._epochs):
+        for local_epoch in range(self._epochs):
             running_loss = 0.0
+            import time
+            start_time = time.time()
             self.model.train()
             for i, (imgs, annotations) in enumerate(self._train_loader):
                 if abort_signal.triggered:
@@ -241,34 +244,30 @@ class ParkingFL_Trainer(Executor):
                 losses.backward()
                 self.optimizer.step()
                 if i % 10 == 0:
-                    self.log_info(fl_ctx, f"AB: Epoch: {epoch}/{self._epochs}, Iteration: {i}/{len_dataloader}, Loss: {losses}")
+                    self.log_info(fl_ctx, f"AB: Round: {self.__num_times_to_call_trainer}, Epoch: {local_epoch}/{self._epochs}, Global epoch: {self.global_epoch}, Iteration: {i}/{len_dataloader}, Loss: {losses}")
 
                 running_loss += losses.cpu().detach().numpy() / imgs[0].size()[0]
-                # if i % 3000 == 0:
-                #     self.log_info(
-                #         fl_ctx, f"Epoch: {epoch}/{self._epochs}, Iteration: {i}, " f"Loss: {running_loss/3000}"
-                #     )
-                #     running_loss = 0.0
+
             epoch_loss = running_loss / len(self._train_loader)
             self.log_info(
-                        fl_ctx, f"AB: Epoch: {epoch}/{self._epochs}, Iteration: {i}, " f"Loss: {epoch_loss}")
-            trackers['train_loss'].append(epoch_loss)
+                        fl_ctx, f"AB: Round: {self.__num_times_to_call_trainer}, Epoch: {local_epoch}/{self._epochs}, global epoch: {self.global_epoch}, Iteration: {i}, " f"Loss: {epoch_loss}")
+            self.overall_trackers['train_loss'].append(epoch_loss)
             if validate_enabled:
-                trackers['val_acc'].append(self._validate(self._validate_loader, epoch, fl_ctx))
-                self.log_info(fl_ctx, f"Validation completed for epoch: {epoch}. mAP: {trackers['val_acc'][epoch]['mAP']}, AP: {trackers['val_acc'][epoch]['ap']}, log_avg_miss_rate: {trackers['val_acc'][epoch]['log_avg_miss_rate']}")
+                self.overall_trackers['val_acc'].append(self._validate(self._validate_loader, self.global_epoch, fl_ctx, self._valid_detection_threshold))
+                self.log_info(fl_ctx, f"Validation completed for round: {self.__num_times_to_call_trainer}, global_epoch: {self.global_epoch}. mAP: {self.overall_trackers['val_acc'][self.global_epoch]['mAP']}, AP: {self.overall_trackers['val_acc'][self.global_epoch]['ap']}, log_avg_miss_rate: {self.overall_trackers['val_acc'][self.global_epoch]['log_avg_miss_rate']}")
 
-                model_path = os.path.abspath(os.path.join(self.models_dir, f"model_{epoch}.pth"))
+                model_path = os.path.abspath(os.path.join(self.models_dir, f"model_{self.__num_times_to_call_trainer}_{local_epoch}_{self.global_epoch}.pth"))
                 torch.save(self.model.state_dict(), model_path)
-
-                # self.log_info(fl_ctx, f"AB: Validation accuracy (correct / total validation images): {(trackers['val_acc'][epoch] * 100):.2f}%") # TODO: AB: Fix this line then uncomment it
-                # TODO: AB: Uncomment the following trackers after fixing the validate function
-                # self.display_train_trackers(trackers, fl_ctx, is_overall=False)
-                # self.overall_trackers['train_loss'].append(epoch_loss)
-                # self.overall_trackers['val_acc'].append(trackers['val_acc'][epoch])
-                # self.display_train_trackers(self.overall_trackers, fl_ctx, is_overall=True)
 
                 pickle_file_path = os.path.abspath(os.path.join(self.outputs_dir, 'overall_trackers.pkl'))
                 pickle.dump(self.overall_trackers, open(pickle_file_path, 'wb')) # AB: Save the training trackers to the disk after each epoch
+
+            # Display the time taken for the local_epoch
+            epoch_end_time = time.time()
+            from datetime import timedelta
+            td = timedelta(seconds=epoch_end_time - start_time)
+            self.log_info(fl_ctx, f"Epoch {self.global_epoch} took: {td}")
+            self.global_epoch += 1
 
     def _validate(self, val_loader, epoch, fl_ctx, detection_threshold=0.2):
         """

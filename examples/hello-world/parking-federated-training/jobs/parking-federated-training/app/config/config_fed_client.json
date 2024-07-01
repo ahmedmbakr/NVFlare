@@ -4,6 +4,7 @@
   "num_classes": 3,
   "batch_size": 6,
   "num_workers_dl": 4,
+  "valid_detection_threshold": 0.5,
   "executors": [
     {
       "tasks": ["train", "submit_model", "get_weights"],
@@ -15,7 +16,8 @@
           "epochs": 1,
           "num_classes": "{num_classes}",
           "batch_size": "{batch_size}",
-          "num_workers_dl": "{num_workers_dl}"
+          "num_workers_dl": "{num_workers_dl}",
+          "valid_detection_threshold": "{valid_detection_threshold}"
         }
       }
     },
@@ -27,7 +29,8 @@
           "data_path": "{datasetpath}",
           "num_classes": "{num_classes}",
           "batch_size": "{batch_size}",
-          "num_workers_dl": "{num_workers_dl}"
+          "num_workers_dl": "{num_workers_dl}",
+          "valid_detection_threshold": "{valid_detection_threshold}"
         }
       }
     }

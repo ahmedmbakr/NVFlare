@@ -33,7 +33,7 @@ import os
 
 class ParkingFL_Tester(Executor):
     def __init__(self, data_path, num_classes,
-        batch_size, num_workers_dl, validate_task_name=AppConstants.TASK_VALIDATION):
+        batch_size, num_workers_dl, valid_detection_threshold, validate_task_name=AppConstants.TASK_VALIDATION):
         super().__init__()
 
         # AB: Parameters
@@ -41,8 +41,11 @@ class ParkingFL_Tester(Executor):
         data_path = os.path.abspath(os.path.join(dir_path, data_path)) # AB: This is to make sure that the path is correct.
         test_data_dir = os.path.join(data_path, "test")
         test_coco = os.path.join(test_data_dir, "_annotations.coco.json")
+
+        self.outputs_dir = os.path.abspath(os.path.join(dir_path, '../outputs'))
         
         self._validate_task_name = validate_task_name
+        self._valid_detection_threshold = valid_detection_threshold
 
         # Setup the model
         resnetNetwork = ResnetFasterRCNN(num_classes)
@@ -85,18 +88,18 @@ class ParkingFL_Tester(Executor):
                 weights = {k: torch.as_tensor(v, device=self.device) for k, v in dxo.data.items()}
 
                 # Get validation accuracy
-                val_accuracy = self._validate(weights, abort_signal)
+                mAP = self._validate(weights, abort_signal, fl_ctx, model_owner)
                 if abort_signal.triggered:
                     return make_reply(ReturnCode.TASK_ABORTED)
 
                 self.log_info(
                     fl_ctx,
-                    f"Accuracy when validating {model_owner}'s model on"
+                    f"mAP when validating {model_owner}'s model on"
                     f" {fl_ctx.get_identity_name()}"
-                    f"s data: {val_accuracy}",
+                    f"s data: {mAP}",
                 )
 
-                dxo = DXO(data_kind=DataKind.METRICS, data={"val_acc": val_accuracy})
+                dxo = DXO(data_kind=DataKind.METRICS, data={"mAP": mAP})
                 return dxo.to_shareable()
             except:
                 self.log_exception(fl_ctx, f"Exception in validating model from {model_owner}")
@@ -104,26 +107,81 @@ class ParkingFL_Tester(Executor):
         else:
             return make_reply(ReturnCode.TASK_UNKNOWN)
 
-    def _validate(self, weights, abort_signal):
+    def _validate(self, weights, abort_signal, fl_ctx, model_owner):
+        """
+        Validate the model on the given test loader.
+        """
+        from parkingFL_trainer import class_id_to_name_dict
         self.model.load_state_dict(weights)
 
-        self.model.eval()
-        # TODO: AB: Implement this function
-        # correct = 0
-        # total = 0
-        # with torch.no_grad():
-        #     for i, (images, labels) in enumerate(self._test_loader):
-        #         if abort_signal.triggered:
-        #             return 0
+        mAP_val_prediction_directory = os.path.abspath(os.path.join(self.outputs_dir, 'mapInput/detection-results'))
+        mAP_val_gt_directory = os.path.abspath(os.path.join(self.outputs_dir, "mapInput/ground-truth"))
 
-        #         images, labels = images.to(self.device), labels.to(self.device)
-        #         output = self.model(images)
+        # If the directories exist, remove them
+        if os.path.exists(mAP_val_prediction_directory):
+            os.system(f"rm -rf {mAP_val_prediction_directory}")
+        if os.path.exists(mAP_val_gt_directory):
+            os.system(f"rm -rf {mAP_val_gt_directory}")
 
-        #         _, pred_label = torch.max(output, 1)
+        # Create the directories
+        os.makedirs(mAP_val_prediction_directory)
+        os.makedirs(mAP_val_gt_directory)
 
-        #         correct += (pred_label == labels).sum().item()
-        #         total += images.size()[0]
+        self.model.eval()  # Set the model to evaluation mode
+        device = self.device
+        len_val_loader = len(self._test_loader)
+        with torch.no_grad():  # No need to track gradients
+            for batch_id, (imgs, annotations) in enumerate(self._test_loader):
+                if abort_signal.triggered:
+                    # If abort_signal is triggered, we simply return.
+                    # The outside function will check it again and decide steps to take.
+                    return
+                imgs = list(img.to(device) for img in imgs)
+                annotations = [{k: v.to(device) for k, v in t.items()} for t in annotations]
+                predictions = self.model(imgs)  # Get model predictions
+                
+                for i, prediction in enumerate(predictions):
+                    # Post-process the predictions to remove low scoring parts
+                    pred_scores = prediction['scores']
+                    pred_boxes = prediction['boxes']
+                    pred_labels = prediction['labels']
 
-        #     metric = correct / float(total)
-        metric = None # TODO: AB: Remove this line
-        return metric
+                    # Filter out predictions based on detection threshold
+                    keep = pred_scores > self._valid_detection_threshold
+                    pred_boxes = pred_boxes[keep].cpu().numpy().tolist()
+                    pred_labels = pred_labels[keep].cpu().numpy().tolist()
+                    pred_scores = pred_scores[keep].cpu().numpy().tolist()
+
+                    # Ground truth
+                    gt_boxes = list(annotations[i]['boxes'].cpu().numpy())
+                    gt_labels = list(annotations[i]['labels'].cpu().numpy())
+
+                    unique_image_id = batch_id * len(imgs) + i
+                    file_name = f'{unique_image_id}.txt'
+                    prediction_file_path = os.path.join(mAP_val_prediction_directory, file_name)
+                    with open(prediction_file_path, 'w') as f:
+                        for box, label_id, score in zip(pred_boxes, pred_labels, pred_scores):
+                            label_name = class_id_to_name_dict[label_id]
+                            f.write(f'{label_name} {score} {box[0]} {box[1]} {box[2]} {box[3]}\n')
+
+                    gt_file_path = os.path.join(mAP_val_gt_directory, file_name)
+                    with open(gt_file_path, 'w') as f:
+                        for box, label_id in zip(gt_boxes, gt_labels):
+                            label_name = class_id_to_name_dict[label_id]
+                            f.write(f'{label_name} {box[0]} {box[1]} {box[2]} {box[3]}\n')
+
+                if batch_id % 10 == 0:
+                    print(f"Validating batch: {batch_id} / {len_val_loader}", end="\r")
+        print("\n")
+        from mAP import calculate_mAP
+        mAP_val_input_dir = os.path.abspath(os.path.join(mAP_val_prediction_directory, '..'))
+        mAP_val_output_dir = os.path.abspath(os.path.join(self.outputs_dir, f'mapOutputs/testOn_{model_owner}'))
+
+        if os.path.exists(mAP_val_output_dir):
+            os.system(f"rm -rf {mAP_val_output_dir}")
+        os.makedirs(mAP_val_output_dir)
+        
+        self.log_info(fl_ctx, f"mAP_val_input_dir: {mAP_val_input_dir}, mAP_val_output_dir: {mAP_val_output_dir}")
+        metric = calculate_mAP(mAP_val_input_dir, mAP_val_output_dir)
+        self.log_info(fl_ctx,f"Validation complete on the model from {model_owner} with the results mAP: {metric['mAP']}, ap: {metric['ap']}, log_avg_miss_rate: {metric['log_avg_miss_rate']}")
+        return metric['mAP'] # Return only the mAP
