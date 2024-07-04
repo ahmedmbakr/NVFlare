@@ -53,8 +53,8 @@
         "id": "scatter_and_gather",
         "name": "ScatterAndGather",
         "args": {
-            "min_clients" : 3,
-            "num_rounds" : 30,
+            "min_clients" : 4,
+            "num_rounds" : 100,
             "start_round": 0,
             "wait_time_after_min_received": 10,
             "aggregator_id": "aggregator",
