@@ -268,12 +268,40 @@ class ParkingTrainer:
         metric = mAP.calculate_mAP(mAP_val_input_dir, mAP_val_output_dir)
         print("Validation complete.")
         return metric
+    
+    def test_model(self, test_coco_paths_list, test_names, detection_threshold=0.5):
+        """
+        In this function, we will test the model using all the given test coco files.
+        Inputs:
+        - test_coco_paths_list: List of paths to the test coco files.
+        - test_names: List of names for the test coco files. Used for printing purposes and the same name will be used as the folder name to save the results.
+        """
+        for test_coco_path, test_name in zip(test_coco_paths_list, test_names):
+            test_coco_dir_path = os.path.dirname(test_coco_path)
+            test_pklot_dataset = PklotDataSet(
+            root_path=test_coco_dir_path, annotation_path=test_coco_path, transforms=self.get_transform()
+            )
+
+            test_data_loader = torch.utils.data.DataLoader(
+                test_pklot_dataset,
+                batch_size=self.config.train_batch_size,
+                shuffle=False,
+                num_workers=self.config.num_workers_dl,
+                collate_fn=collate_fn,
+            )
+
+            metric = self.validate(test_data_loader, test_name, detection_threshold)
+            print(f"Testing completed on dataset: {test_name}. mAP: {metric['mAP']}, AP: {metric['ap']}, log_avg_miss_rate: {metric['log_avg_miss_rate']}")
+
 
 if __name__ == "__main__":
-    PKLOT_CNR_TRAINING_SELECTOR = 'CNR'
+    PKLOT_CNR_TRAINING_SELECTOR = 'PUCPR'
     if PKLOT_CNR_TRAINING_SELECTOR == 'PKLOT':
         import pklot_trainer_config as config
+    elif PKLOT_CNR_TRAINING_SELECTOR == 'PUCPR':
+        import pklot_PUCPR_trainer_config as config
     elif PKLOT_CNR_TRAINING_SELECTOR == 'CNR':
         import cnr_trainer_config as config
     trainer = ParkingTrainer(config)
     trainer.local_train()
+    trainer.test_model(config.test_coco_paths_list, config.test_names, config.mAP_detection_threshold)
