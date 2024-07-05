@@ -72,9 +72,15 @@ if __name__ == "__main__":
         print(job_id + " was submitted")
         sess.monitor_job(job_id, poll_interval=POLL_STATUS_INTERVAL_SEC, cb=sample_cb, cb_run_counter={"count":0})
         print("job done!")
-        # Execute shell command
-        os.system("nvflare poc stop")
-        print("System is shut down")
+
+        # Save the Server's global model and logs
+        server_global_model_path = f'{POC_WORKSPACE}/server/{job_id}/app_server/FL_global_model.pt'
+        os.system(f"cp {server_global_model_path} {POC_WORKSPACE}")
+        print("Saved the server's global model to the path: ", f"{POC_WORKSPACE}/FL_global_model.pt")
+
+        server_logs_path = f'{POC_WORKSPACE}/server/{job_id}/log.txt'
+        os.system(f"cp {server_logs_path} {POC_WORKSPACE}/server_logs.txt")
+        print("saved the server logs to the path: ", f"{POC_WORKSPACE}/server_logs.txt")
 
         # Create a zip file of the POC output to save the experiment results. # AB: This part is commented for now because I will need to remove most of the models manually from the output models folder before zipping the output. TODO: AB: This will be decided later if this is needed or not.
         # Original command: zip -r ~/NVFlare/examples/hello-world/parking-federated-training/poc_output.zip /tmp/bakr-nvflare/poc/example_project/prod_00
@@ -85,3 +91,6 @@ if __name__ == "__main__":
 
     finally:
         sess.close()
+        # Execute shell command
+        os.system("nvflare poc stop")
+        print("System is shut down")
