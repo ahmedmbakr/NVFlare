@@ -2,9 +2,9 @@
   "format_version": 2,
   "datasetpath": "../../../data",
   "num_classes": 3,
-  "batch_size": 6,
+  "batch_size": 8,
   "num_workers_dl": 4,
-  "valid_detection_threshold": 0.5,
+  "valid_detection_threshold": 0.9,
   "executors": [
     {
       "tasks": ["train", "submit_model", "get_weights"],
