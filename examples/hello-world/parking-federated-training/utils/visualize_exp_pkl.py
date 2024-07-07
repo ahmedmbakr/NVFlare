@@ -44,6 +44,8 @@ def visualize_pkl_file(pickle_file_path, save_folder_path=None):
     ax.legend() #show legend
     # Draw a mark on the maximum point
     ax.set(xlabel="Epoch", ylabel="mAP", title="mAP vs Epoch")
+    # Set the y axis limits to be between 0 and 1
+    # ax.set_ylim([0, 1])
     ax.grid()
     plt.show(block=True)
     # save the figure
