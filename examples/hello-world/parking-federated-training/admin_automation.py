@@ -84,9 +84,9 @@ if __name__ == "__main__":
 
         # Create a zip file of the POC output to save the experiment results. # AB: This part is commented for now because I will need to remove most of the models manually from the output models folder before zipping the output. TODO: AB: This will be decided later if this is needed or not.
         # Original command: zip -r ~/NVFlare/examples/hello-world/parking-federated-training/poc_output.zip /tmp/bakr-nvflare/poc/example_project/prod_00
-        # zip_file_path = os.path.join(dir_path, "poc_output.zip")
-        # os.system(f"zip -r {zip_file_path} {POC_WORKSPACE}")
-        # print("POC output is zipped to the path: ", zip_file_path)
+        zip_file_path = os.path.join(dir_path, "poc_output.zip")
+        os.system(f"zip -r {zip_file_path} {POC_WORKSPACE}/..")
+        print("POC output is zipped to the path: ", zip_file_path)
         visualize_graphs(NUM_CLIENTS, job_id, TRACKERS_FILE_PATH)
 
     finally:

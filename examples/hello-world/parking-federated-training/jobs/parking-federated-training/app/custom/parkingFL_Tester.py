@@ -43,6 +43,7 @@ class ParkingFL_Tester(Executor):
         test_coco = os.path.join(test_data_dir, "_annotations.coco.json")
 
         self.outputs_dir = os.path.abspath(os.path.join(dir_path, '../outputs'))
+        self.test_models_on_test_data_results_file_path = os.path.join(self.outputs_dir, "test_results.txt")
         
         self._validate_task_name = validate_task_name
         self._valid_detection_threshold = valid_detection_threshold
@@ -89,6 +90,10 @@ class ParkingFL_Tester(Executor):
 
                 # Get validation accuracy
                 mAP = self._validate(weights, abort_signal, fl_ctx, model_owner)
+                # Append the test results to the test_results file
+                with open(self.test_models_on_test_data_results_file_path, 'a') as f:
+                    f.write(f"{model_owner}: {mAP}\n")
+
                 if abort_signal.triggered:
                     return make_reply(ReturnCode.TASK_ABORTED)
 

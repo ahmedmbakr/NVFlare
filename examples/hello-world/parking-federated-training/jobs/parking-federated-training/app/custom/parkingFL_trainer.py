@@ -153,6 +153,7 @@ class ParkingFL_Trainer(Executor):
         self.__num_times_to_call_trainer = 0 # AB: This variable is incremented every time the train function is called.
         self.global_epoch = 0 # AB: This number represents one flat number that combines both the round and local epoch numbers.
         self.overall_trackers = {"train_loss": [], "val_acc": []}
+        self.__best_mAP = 0.0
 
 
     def execute(self, task_name: str, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal) -> Shareable:
@@ -255,9 +256,15 @@ class ParkingFL_Trainer(Executor):
             if validate_enabled:
                 self.overall_trackers['val_acc'].append(self._validate(self._validate_loader, self.global_epoch, fl_ctx, self._valid_detection_threshold))
                 self.log_info(fl_ctx, f"Validation completed for round: {self.__num_times_to_call_trainer}, global_epoch: {self.global_epoch}. mAP: {self.overall_trackers['val_acc'][self.global_epoch]['mAP']}, AP: {self.overall_trackers['val_acc'][self.global_epoch]['ap']}, log_avg_miss_rate: {self.overall_trackers['val_acc'][self.global_epoch]['log_avg_miss_rate']}")
-
-                model_path = os.path.abspath(os.path.join(self.models_dir, f"model_{self.__num_times_to_call_trainer}_{local_epoch}_{self.global_epoch}.pth"))
-                torch.save(self.model.state_dict(), model_path)
+                # Save the model if the mAP is better than the previous best mAP. In this case, remove the previous saved model and save the new best model.
+                if self.overall_trackers['val_acc'][self.global_epoch]['mAP'] > self.__best_mAP:
+                    self.__best_mAP = self.overall_trackers['val_acc'][self.global_epoch]['mAP']
+                    self.log_info(fl_ctx, f"New best mAP: {self.__best_mAP}")
+                    # Remove the previous saved model
+                    os.system(f"rm {self.models_dir}/*.pth")
+                    # Save the new best model
+                    model_path = os.path.abspath(os.path.join(self.models_dir, f"model_{self.__num_times_to_call_trainer}_{local_epoch}_{self.global_epoch}.pth"))
+                    torch.save(self.model.state_dict(), model_path)
 
                 pickle_file_path = os.path.abspath(os.path.join(self.outputs_dir, 'overall_trackers.pkl'))
                 pickle.dump(self.overall_trackers, open(pickle_file_path, 'wb')) # AB: Save the training trackers to the disk after each epoch
