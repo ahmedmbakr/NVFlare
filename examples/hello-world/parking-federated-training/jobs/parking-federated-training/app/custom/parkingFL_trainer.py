@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+from typing import Union
+import copy
+import numpy as np
 import os.path
 
 import torch
@@ -34,13 +36,18 @@ from nvflare.apis.fl_context import FLContext
 from nvflare.apis.shareable import Shareable, make_reply
 from nvflare.apis.signal import Signal
 from nvflare.app_common.abstract.model import make_model_learnable, model_learnable_to_dxo
-from nvflare.app_common.app_constant import AppConstants
 from nvflare.app_opt.pt.model_persistence_format_manager import PTModelPersistenceFormatManager
+from nvflare.app_opt.pt.fedproxloss import PTFedProxLoss
+from nvflare.app_common.abstract.fl_model import FLModel, ParamsType
+from nvflare.app_common.abstract.model_learner import ModelLearner
+from nvflare.app_common.app_constant import AppConstants, ModelName, ValidateType
+from nvflare.app_common.utils.fl_model_utils import FLModelUtils
+from nvflare.apis.fl_constant import FLMetaKey, ReturnCode
 
 class_id_to_name_dict = {1: "Space-empty", 2: "Space-occupied"}
 
 
-class ParkingFL_Trainer(Executor):
+class ParkingFL_Trainer(ModelLearner):
     def __init__(
         self,
         data_path,
@@ -49,87 +56,95 @@ class ParkingFL_Trainer(Executor):
         num_classes, 
         batch_size,
         valid_detection_threshold,
-        train_task_name=AppConstants.TASK_TRAIN,
-        submit_model_task_name=AppConstants.TASK_SUBMIT_MODEL,
-        exclude_vars=None,
+        fedproxloss_mu: float = 0.0,
         shuffle_training_data_enable=True,
         num_workers_dl=4,
-        pre_train_task_name=AppConstants.TASK_GET_WEIGHTS,
     ):
-        """Cifar10 Trainer handles train and submit_model tasks. During train_task, it trains a
-        simple network on CIFAR10 dataset. For submit_model task, it sends the locally trained model
-        (if present) to the server.
+        """Init function for the ParkingFL_Trainer class.
 
         Args:
-            lr (float, optional): Learning rate. Defaults to 0.01
-            epochs (int, optional): Epochs. Defaults to 5
-            train_task_name (str, optional): Task name for train task. Defaults to "train".
-            submit_model_task_name (str, optional): Task name for submit model. Defaults to "submit_model".
-            exclude_vars (list): List of variables to exclude during model loading.
-            pre_train_task_name: Task name for pre train task, i.e., sending initial model weights.
+            data_path: data (train/valid/test) root path
+            lr: learning rate
+            epochs: number of local epochs before aggregating with the server
+            num_classes: number of classes in the dataset
+            batch_size: batch size
+            valid_detection_threshold: threshold for detection. Used to filter out low scoring detections during the validation phase.
+            fedproxloss_mu: FedProx loss parameter. Default is 0.0 (FedAvg). If its value is greater than zero, then it becomes FedProx.
+            shuffle_training_data_enable: whether to shuffle the training data or not. The default value is True.
+            num_workers_dl: number of workers for the DataLoader. The default value is 4.
         """
         super().__init__()
 
         # AB: Parameters
-        self.dir_path = os.path.dirname(os.path.realpath(__file__))
-        data_path = os.path.abspath(os.path.join(self.dir_path, data_path)) # AB: This is to make sure that the path is correct.
-        
+        self.data_path = data_path
         self._lr = lr
         self._epochs = epochs
-        self._train_task_name = train_task_name
-        self._pre_train_task_name = pre_train_task_name
-        self._submit_model_task_name = submit_model_task_name
-        self._exclude_vars = exclude_vars
+        self.num_classes = num_classes
+        self.batch_size = batch_size
         self._valid_detection_threshold = valid_detection_threshold
+        self.fedproxloss_mu = fedproxloss_mu
+        self.shuffle_training_data_enable = shuffle_training_data_enable
+        self.num_workers_dl = num_workers_dl
 
-        print(f"Number of classes: {num_classes}, Learning rate: {lr}, Number of epochs: {epochs}, Batch size: {batch_size}, data path: {data_path}, valid_detection_threshold: {valid_detection_threshold}")
+    def initialize(self):
+        """
+        Initialization function for the ParkingFL_Trainer class. This function is automatically called from `nvflare/app_common/executors/model_learner_executor.py`
+        """
+        # when the run starts, this is where the actual settings get initialized for trainer
+        self.info(
+            f"Client {self.site_name} initializing at \n {self.app_root} \n with args: {self.args}",
+        )
+
+        self.dir_path = os.path.dirname(os.path.realpath(__file__))
+        self.data_path = os.path.abspath(os.path.join(self.dir_path, self.data_path)) # AB: This is to make sure that the path is correct.
+        self.info(f"Number of classes: {self.num_classes}, Learning rate: {self._lr}, Number of epochs: {self._epochs}, Batch size: {self.batch_size}, data path: {self.data_path}, valid_detection_threshold: {self._valid_detection_threshold}")
 
         # Training setup
-        resnetNetwork = ResnetFasterRCNN(num_classes)
-        self.model = resnetNetwork.get_model()
+        self.model = ResnetFasterRCNN(self.num_classes)
+        # self.model = ResnetFasterRCNN.__get_model(self.num_classes)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.loss = nn.CrossEntropyLoss()
-        self.optimizer = SGD(self.model.parameters(), lr=lr, momentum=0.9)
+        self.optimizer = SGD(self.model.parameters(), lr=self._lr, momentum=0.9)
 
-        train_data_path = data_path # AB: This is the path to the data for this client.
+        train_data_path = self.data_path # AB: This is the path to the data for this client.
         train_data_dir = os.path.join(train_data_path, "train")
         val_data_dir = os.path.join(train_data_path, "valid")
         train_coco = os.path.join(train_data_dir, "_annotations.coco.json")
         val_coco = os.path.join(val_data_dir, "_annotations.coco.json")
 
         self._train_dataset = PklotDataSet(
-            root_path=train_data_dir, annotation_path=train_coco, transforms=resnetNetwork.get_transform()
+            root_path=train_data_dir, annotation_path=train_coco, transforms=ResnetFasterRCNN.get_transform()
         )
 
         self._val_dataset = PklotDataSet(
-            root_path=val_data_dir, annotation_path=val_coco, transforms=resnetNetwork.get_transform()
+            root_path=val_data_dir, annotation_path=val_coco, transforms=ResnetFasterRCNN.get_transform()
         )
 
          # own DataLoader
         self._train_loader = torch.utils.data.DataLoader(
             self._train_dataset,
-            batch_size=batch_size,
-            shuffle=shuffle_training_data_enable,
-            num_workers=num_workers_dl,
+            batch_size=self.batch_size,
+            shuffle=self.shuffle_training_data_enable,
+            num_workers=self.num_workers_dl,
             collate_fn=collate_fn,
         )
 
         self._validate_loader = torch.utils.data.DataLoader(
             self._val_dataset,
-            batch_size=batch_size,
+            batch_size=self.batch_size,
             shuffle=False,
-            num_workers=num_workers_dl,
+            num_workers=self.num_workers_dl,
             collate_fn=collate_fn,
         )
 
         # Split the dataset
-        print(f"The initialization is running from this folder: {os.path.abspath(__file__)}")
+        self.info(f"The initialization is running from this folder: {os.path.abspath(__file__)}")
 
         self._n_iterations = len(self._train_loader)
-        print(f"Number of iterations: {self._n_iterations}")
+        self.info(f"Number of iterations: {self._n_iterations}")
         # print(f"Shape of the whole dataset: {self._train_dataset.dataset.data.shape}")
-        print(f"Number of samples from the whole data: {len(self._train_dataset)} = Number of iterations ({self._n_iterations}) * batch size ({batch_size})")
+        self.info(f"Number of samples from the whole data: {len(self._train_dataset)} = Number of iterations ({self._n_iterations}) * batch size ({self.batch_size})")
 
         # Setup the persistence manager to save PT model.
         # The default training configuration is used by persistence manager
@@ -139,8 +154,9 @@ class ParkingFL_Trainer(Executor):
             data=self.model.state_dict(), default_train_conf=self._default_train_conf
         )
 
-        # AB: Note that the data is downloaded on my local machine in the path: "~/data", and it is shared between all the clients.
-        print(f"ParkingFL_Trainer initialized: This is the path of the data: {data_path}") # AB: This was just to make sure that print statements will be displayed in the output. It is displayed in the CMD, but not in the log files, which is expected.
+        if self.fedproxloss_mu > 0:
+            print(f"using FedProx loss with mu {self.fedproxloss_mu}")
+            self.criterion_prox = PTFedProxLoss(mu=self.fedproxloss_mu)
 
         self.outputs_dir = os.path.abspath(os.path.join(self.dir_path, '../outputs'))
         self.models_dir = os.path.abspath(os.path.join(self.outputs_dir, 'models'))
@@ -150,85 +166,162 @@ class ParkingFL_Trainer(Executor):
             os.system(f"rm -rf {self.models_dir}")
         os.makedirs(self.models_dir)
 
-        self.__num_times_to_call_trainer = 0 # AB: This variable is incremented every time the train function is called.
-        self.global_epoch = 0 # AB: This number represents one flat number that combines both the round and local epoch numbers.
+        self.local_epoch = None
+        self.global_epoch = -1 # Because it is incremented by one before the beginning of the first epoch. This is a hack to make it start from 0.
         self.overall_trackers = {"train_loss": [], "val_acc": []}
-        self.__best_mAP = 0.0
+        self.best_mAP = 0.0
+        self.best_local_model_file = None # Its value is set inside the save_model function.
 
+        # AB: Note that the data is downloaded on my local machine in the path: "~/data", and it is shared between all the clients.
+        print(f"ParkingFL_Trainer initialized: This is the path of the data: {self.data_path} for client: {self.site_name}") # AB: This was just to make sure that print statements will be displayed in the output. It is displayed in the CMD, but not in the log files, which is expected.
 
-    def execute(self, task_name: str, shareable: Shareable, fl_ctx: FLContext, abort_signal: Signal) -> Shareable:
-        # Print the path of the executing file.
-        # AB: This will be printed in the CMD and the log files for 
-        self.log_info(fl_ctx, f"Executing file: {os.path.abspath(__file__)}")
-        try:
-            if task_name == self._pre_train_task_name:
-                # Get the new state dict and send as weights
-                return self._get_model_weights()
-            elif task_name == self._train_task_name:
-                # Get model weights
+    def train(self, model: FLModel) -> Union[str, FLModel]:
+        """
+        This function trains the model. It is called from the `nvflare/app_common/executors/model_learner_executor.py` file.
+        """
+        # get round information
+        self.info(f"Enter train function for Client: {self.site_name}. Current/Total Round: {self.current_round + 1}/{self.total_rounds}")
+        self.info(f"Client identity: {self.site_name}")
+
+        # update local model weights with received weights
+        global_weights = model.params
+
+        # Before loading weights, tensors might need to be reshaped to support HE for secure aggregation.
+        local_var_dict = self.model.state_dict()
+        model_keys = global_weights.keys()
+        for var_name in local_var_dict:
+            if var_name in model_keys:
+                weights = global_weights[var_name]
                 try:
-                    dxo = from_shareable(shareable)
-                except:
-                    self.log_error(fl_ctx, "Unable to extract dxo from shareable.")
-                    return make_reply(ReturnCode.BAD_TASK_DATA)
+                    # reshape global weights to compute difference later on
+                    global_weights[var_name] = np.reshape(weights, local_var_dict[var_name].shape)
+                    # update the local dict
+                    local_var_dict[var_name] = torch.as_tensor(global_weights[var_name])
+                except BaseException as e:
+                    raise ValueError(f"Convert weight from {var_name} failed") from e
+        self.model.load_state_dict(local_var_dict)
 
-                # Ensure data kind is weights.
-                if not dxo.data_kind == DataKind.WEIGHTS:
-                    self.log_error(fl_ctx, f"data_kind expected WEIGHTS but got {dxo.data_kind} instead.")
-                    return make_reply(ReturnCode.BAD_TASK_DATA)
+        # local steps
+        epoch_len = len(self._train_loader)
+        self.info(f"Local steps per epoch: {epoch_len}")
 
-                # Convert weights to tensor. Run training
-                torch_weights = {k: torch.as_tensor(v) for k, v in dxo.data.items()}
-                self._local_train(fl_ctx, torch_weights, abort_signal)
+        # make a copy of model_global as reference for potential FedProx loss or SCAFFOLD
+        model_global = copy.deepcopy(self.model)
+        for param in model_global.parameters():
+            param.requires_grad = False
 
-                # Check the abort_signal after training.
-                # local_train returns early if abort_signal is triggered.
-                if abort_signal.triggered:
-                    return make_reply(ReturnCode.TASK_ABORTED)
-
-                # Save the local model after training.
-                self._save_local_model(fl_ctx)
-
-                # Get the new state dict and send as weights
-                return self._get_model_weights()
-            elif task_name == self._submit_model_task_name:
-                # Load local model
-                ml = self._load_local_model(fl_ctx)
-
-                # Get the model parameters and create dxo from it
-                dxo = model_learnable_to_dxo(ml)
-                return dxo.to_shareable()
-            else:
-                return make_reply(ReturnCode.TASK_UNKNOWN)
-        except Exception as e:
-            self.log_exception(fl_ctx, f"Exception in simple trainer: {e}.")
-            return make_reply(ReturnCode.EXECUTION_EXCEPTION)
-
-    def _get_model_weights(self) -> Shareable:
-        # Get the new state dict and send as weights
-        weights = {k: v.cpu().numpy() for k, v in self.model.state_dict().items()}
-
-        outgoing_dxo = DXO(
-            data_kind=DataKind.WEIGHTS, data=weights, meta={MetaKey.NUM_STEPS_CURRENT_ROUND: self._n_iterations}
+        # local train
+        self._local_train(
+            self.fl_ctx,
+            model_global=model_global
         )
-        return outgoing_dxo.to_shareable()
+        self.save_model(is_best=False)
 
-    def _local_train(self, fl_ctx, weights, abort_signal, validate_enabled=True):
-        self.__num_times_to_call_trainer += 1
+        # compute delta model, global model has the primary key set
+        local_weights = self.model.state_dict()
+        model_diff = {}
+        for name in global_weights:
+            if name not in local_weights:
+                continue
+            model_diff[name] = np.subtract(local_weights[name].cpu().numpy(), global_weights[name], dtype=np.float32)
+            if np.any(np.isnan(model_diff[name])):
+                self.stop_task(f"{name} weights became NaN...")
+                return ReturnCode.EXECUTION_EXCEPTION
 
-        # Set the model weights
-        self.model.load_state_dict(state_dict=weights)
+        # return an FLModel containing the model differences
+        fl_model = FLModel(params_type=ParamsType.DIFF, params=model_diff)
 
+        FLModelUtils.set_meta_prop(fl_model, FLMetaKey.NUM_STEPS_CURRENT_ROUND, epoch_len)
+        self.info("Local epochs finished. Returning FLModel")
+        return fl_model
+
+    def validate(self, model: FLModel) -> Union[str, FLModel]:
+        """
+        This function validates the model after each epoch. It is called from the `nvflare/app_common/executors/model_learner_executor.py` file.
+        """
+        # get validation information
+        self.info(f"Started validation function for Client: {self.site_name}")
+
+        # update local model weights with received weights
+        global_weights = model.params
+
+        # Before loading weights, tensors might need to be reshaped to support HE for secure aggregation.
+        local_var_dict = self.model.state_dict()
+        model_keys = global_weights.keys()
+        self.info(f'AB: global_weights keys: {model_keys}')
+        self.info(f'AB: local_var_dict keys: {local_var_dict.keys()}')
+        n_loaded = 0
+        for var_name in local_var_dict:
+            if var_name in model_keys:
+                weights = torch.as_tensor(global_weights[var_name], device=self.device)
+                try:
+                    # update the local dict
+                    local_var_dict[var_name] = torch.as_tensor(torch.reshape(weights, local_var_dict[var_name].shape))
+                    n_loaded += 1
+                except BaseException as e:
+                    raise ValueError(f"Convert weight from {var_name} failed") from e
+        self.model.load_state_dict(local_var_dict)
+        if n_loaded == 0:
+            raise ValueError(f"No weights loaded for validation! Received weight dict is {global_weights}")
+
+        # get validation meta info
+        validate_type = FLModelUtils.get_meta_prop(
+            model, FLMetaKey.VALIDATE_TYPE, ValidateType.MODEL_VALIDATE
+        )  # TODO: enable model.get_meta_prop(...)
+        model_owner = self.get_shareable_header(AppConstants.MODEL_OWNER)
+
+        # perform valid
+        # AB: No need to validate the model on the training data. We will only validate the model on the validation data.
+        # train_acc = self._validate(self._train_loader)
+        # self.info(f"training acc ({model_owner}): {train_acc:.4f}")
+
+        mAP = self._validate(self._validate_loader, self.global_epoch, self.fl_ctx, self._valid_detection_threshold)
+        self.overall_trackers['val_acc'].append(mAP)
+        self.info(f"Validation completed for round: {self.global_epoch}, global_epoch: {self.global_epoch}. mAP: {self.overall_trackers['val_acc'][self.global_epoch]['mAP']}, AP: {self.overall_trackers['val_acc'][self.global_epoch]['ap']}, log_avg_miss_rate: {self.overall_trackers['val_acc'][self.global_epoch]['log_avg_miss_rate']}")
+        self.info("Evaluation finished. Returning result")
+
+        pickle_file_path = os.path.abspath(os.path.join(self.outputs_dir, 'overall_trackers.pkl'))
+        pickle.dump(self.overall_trackers, open(pickle_file_path, 'wb')) # AB: Save the training trackers to the disk after each epoch
+
+        if mAP > self.best_mAP:
+            self.best_mAP = mAP
+            self.save_model(is_best=True)
+
+        # val_results = {"train_accuracy": train_acc, "val_accuracy": val_acc} # AB: Commented because we are not validating the model on the training data.
+        val_results = {"mAP": mAP}
+        return FLModel(metrics=val_results)
+
+    def save_model(self, is_best=False):
+        """
+        This function saves the model in the self.models_dir directory. Note: If is_best is True, then the model will be saved as the best model and all other models in the same folder will be removed.
+        """
+        # save model
+        model_weights = self.model.state_dict()
+        save_dict = {"model_weights": model_weights, "epoch": self.global_epoch}
+        model_path = os.path.abspath(os.path.join(self.models_dir, f"model_{self.global_epoch}_{self.local_epoch}_{self.global_epoch}.pth"))
+        if is_best:
+            save_dict.update({"best_mAP": self.best_mAP})
+            # Remove the previous saved model
+            os.system(f"rm {self.models_dir}/*.pth")
+            # Save the new best model
+            torch.save(save_dict, model_path)
+            self.best_local_model_file = model_path
+        else:
+            torch.save(save_dict, model_path)
+
+    def _local_train(self, fl_ctx, model_global):
         len_dataloader = len(self._train_loader)
 
         # Basic training
         for local_epoch in range(self._epochs):
+            self.local_epoch = local_epoch
+            self.global_epoch += 1 # It is initialized to -1 in the initialize function.
             running_loss = 0.0
             import time
             start_time = time.time()
             self.model.train()
             for i, (imgs, annotations) in enumerate(self._train_loader):
-                if abort_signal.triggered:
+                if self.abort_signal.triggered:
                     # If abort_signal is triggered, we simply return.
                     # The outside function will check it again and decide steps to take.
                     return
@@ -240,43 +333,32 @@ class ParkingFL_Trainer(Executor):
 
                 loss_dict = self.model(imgs, annotations)
                 losses = sum(loss for loss in loss_dict.values())
+
+                # FedProx loss term
+                if self.fedproxloss_mu > 0:
+                    fed_prox_loss = self.criterion_prox(self.model, model_global)
+                    losses += fed_prox_loss
                 
                 self.optimizer.zero_grad()
                 losses.backward()
                 self.optimizer.step()
                 if i % 10 == 0:
-                    self.log_info(fl_ctx, f"AB: Round: {self.__num_times_to_call_trainer}, Epoch: {local_epoch}/{self._epochs}, Global epoch: {self.global_epoch}, Iteration: {i}/{len_dataloader}, Loss: {losses}")
+                    self.log_info(fl_ctx, f"AB: Round: {self.current_round}, Epoch: {local_epoch}/{self._epochs}, Global epoch: {self.global_epoch}, Iteration: {i}/{len_dataloader}, Loss: {losses}")
 
                 running_loss += losses.cpu().detach().numpy() / imgs[0].size()[0]
 
             epoch_loss = running_loss / len(self._train_loader)
             self.log_info(
-                        fl_ctx, f"AB: Round: {self.__num_times_to_call_trainer}, Epoch: {local_epoch}/{self._epochs}, global epoch: {self.global_epoch}, Iteration: {i}, " f"Loss: {epoch_loss}")
+                        fl_ctx, f"AB: Round: {self.global_epoch}, Epoch: {local_epoch}/{self._epochs}, global epoch: {self.global_epoch}, Iteration: {i}, " f"Loss: {epoch_loss}")
             self.overall_trackers['train_loss'].append(epoch_loss)
-            if validate_enabled:
-                self.overall_trackers['val_acc'].append(self._validate(self._validate_loader, self.global_epoch, fl_ctx, self._valid_detection_threshold))
-                self.log_info(fl_ctx, f"Validation completed for round: {self.__num_times_to_call_trainer}, global_epoch: {self.global_epoch}. mAP: {self.overall_trackers['val_acc'][self.global_epoch]['mAP']}, AP: {self.overall_trackers['val_acc'][self.global_epoch]['ap']}, log_avg_miss_rate: {self.overall_trackers['val_acc'][self.global_epoch]['log_avg_miss_rate']}")
-                # Save the model if the mAP is better than the previous best mAP. In this case, remove the previous saved model and save the new best model.
-                if self.overall_trackers['val_acc'][self.global_epoch]['mAP'] > self.__best_mAP:
-                    self.__best_mAP = self.overall_trackers['val_acc'][self.global_epoch]['mAP']
-                    self.log_info(fl_ctx, f"New best mAP: {self.__best_mAP}")
-                    # Remove the previous saved model
-                    os.system(f"rm {self.models_dir}/*.pth")
-                    # Save the new best model
-                    model_path = os.path.abspath(os.path.join(self.models_dir, f"model_{self.__num_times_to_call_trainer}_{local_epoch}_{self.global_epoch}.pth"))
-                    torch.save(self.model.state_dict(), model_path)
-
-                pickle_file_path = os.path.abspath(os.path.join(self.outputs_dir, 'overall_trackers.pkl'))
-                pickle.dump(self.overall_trackers, open(pickle_file_path, 'wb')) # AB: Save the training trackers to the disk after each epoch
 
             # Display the time taken for the local_epoch
             epoch_end_time = time.time()
             from datetime import timedelta
             td = timedelta(seconds=epoch_end_time - start_time)
             self.log_info(fl_ctx, f"Epoch {self.global_epoch} took: {td}")
-            self.global_epoch += 1
 
-    def _validate(self, val_loader, epoch, fl_ctx, detection_threshold=0.2):
+    def _validate(self, val_loader, epoch, fl_ctx, detection_threshold=0.5):
         """
         Validate the model on the given loader (validate or test).
         """
@@ -332,16 +414,9 @@ class ParkingFL_Trainer(Executor):
                             label_name = class_id_to_name_dict[label_id]
                             f.write(f'{label_name} {box[0]} {box[1]} {box[2]} {box[3]}\n')
 
-                    # Calculate and print some form of validation metric
-                    # This is where you might calculate intersection-over-union (IoU) and derive your precision/recall metrics.
-                    # For simplicity, here we are just printing out the number of true positives, etc.
-                    # In practice, you would use something like COCOeval from the pycocotools library to do this.
-                        # print(f"Processed {i+1}/{len(val_loader)} images")
-                        # print(f"Predictions: {len(pred_scores)} objects detected")
-                    # Example metric (not implemented here): IoU, Precision, Recall, mAP
-                if batch_id % 10 == 0:
-                    print(f"Validating batch: {batch_id} / {len_val_loader}", end="\r")
-        print("\n")
+                # if batch_id % 10 == 0:
+                #     print(f"Validating batch: {batch_id} / {len_val_loader}", end="\r")
+        # print("\n")
         from mAP import calculate_mAP
         mAP_val_input_dir = os.path.abspath(os.path.join(mAP_val_prediction_directory, '..'))
         mAP_val_output_dir = os.path.abspath(os.path.join(self.outputs_dir, f'mapOutputs/{epoch}'))
@@ -355,46 +430,6 @@ class ParkingFL_Trainer(Executor):
         self.log_info(fl_ctx,"Validation complete.")
         return metric
 
-    def display_train_trackers(self, trackers, fl_ctx, is_overall=False):
-        import pickle
-        import matplotlib.pyplot as plt
-        import os
-
-        if not os.path.exists(self.outputs_dir):
-            os.makedirs(self.outputs_dir)
-        
-        # print(trackers)
-        # Display train loss graph.
-        plt.figure() # New graph
-        plt.plot(trackers['train_loss'])
-        plt.xlabel('Epochs')
-        plt.ylabel('Train loss')
-        plt.title('Train loss vs Epochs')
-        # Save the graph to the disk
-        save_file_name = 'normal_train_loss_overall.png' if is_overall else f'normal_train_loss_{self.__num_times_to_call_trainer}.png'
-        plt.savefig(os.path.abspath(os.path.join(self.outputs_dir, save_file_name)))
-
-        # Display validation accuracy graph.
-        plt.figure() # New graph
-        plt.plot(trackers['val_acc'])
-        plt.xlabel('Epochs')
-        plt.ylabel('Validation accuracy')
-        plt.title('Validation accuracy vs Epochs')
-        # Save the graph to the disk
-        save_file_name = 'normal_val_acc_overall.png' if is_overall else f'normal_val_acc_{self.__num_times_to_call_trainer}.png'
-        plt.savefig(os.path.abspath(os.path.join(self.outputs_dir, save_file_name)))
-
-    def _save_local_model(self, fl_ctx: FLContext):
-        run_dir = fl_ctx.get_engine().get_workspace().get_run_dir(fl_ctx.get_prop(ReservedKey.RUN_NUM))
-        models_dir = os.path.join(run_dir, PTConstants.PTModelsDir)
-        if not os.path.exists(models_dir):
-            os.makedirs(models_dir)
-        model_path = os.path.join(models_dir, PTConstants.PTLocalModelName)
-
-        ml = make_model_learnable(self.model.state_dict(), {})
-        self.persistence_manager.update(ml)
-        torch.save(self.persistence_manager.to_persistence_dict(), model_path)
-
     def _load_local_model(self, fl_ctx: FLContext):
         run_dir = fl_ctx.get_engine().get_workspace().get_run_dir(fl_ctx.get_prop(ReservedKey.RUN_NUM))
         models_dir = os.path.join(run_dir, PTConstants.PTModelsDir)
@@ -407,3 +442,37 @@ class ParkingFL_Trainer(Executor):
         )
         ml = self.persistence_manager.to_model_learnable(exclude_vars=self._exclude_vars)
         return ml
+    
+    def get_model(self, model_name: str) -> Union[str, FLModel]:
+        """
+        This function is called from nvflare/app_common/executors/model_learner_executor.py
+        """
+        # Retrieve the best local model saved during training.
+        if model_name == ModelName.BEST_MODEL:
+            try:
+                # load model to cpu as server might or might not have a GPU
+                model_data = torch.load(self.best_local_model_file, map_location="cpu")
+            except Exception as e:
+                raise ValueError("Unable to load best model") from e
+
+            # Create FLModel from model data.
+            if model_data:
+                # convert weights to numpy to support FOBS
+                model_weights = model_data["model_weights"]
+                for k, v in model_weights.items():
+                    model_weights[k] = v.numpy()
+                return FLModel(params_type=ParamsType.FULL, params=model_weights)
+            else:
+                # Set return code.
+                self.error(f"best local model not found at {self.best_local_model_file}.")
+                return ReturnCode.EXECUTION_RESULT_ERROR
+        else:
+            raise ValueError(f"Unknown model_type: {model_name}")  # Raised errors are caught in LearnerExecutor class.
+    
+    def finalize(self):
+        """
+        This function is called at the end of the training. It is called from the `nvflare/app_common/executors/model_learner_executor.py` file.
+        """
+        # collect threads, close files here
+        # TODO: I will perform the test here only if the training is successful.
+        pass
