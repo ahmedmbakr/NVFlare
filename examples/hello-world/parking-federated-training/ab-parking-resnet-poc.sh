@@ -8,7 +8,8 @@ source ~/anaconda3/bin/activate nvflare
 sleep 1
 rm -rf ${NVFLARE_POC_WORKSPACE}
 
-nvflare poc prepare -n ${NUM_CLIENTS} # Prepare the environment for n clients
+# I added -he (Homomorphic Encryption) based on this notebook: examples/hello-world/step-by-step/cifar10/sag_he/sag_he.ipynb
+nvflare poc prepare -he -n ${NUM_CLIENTS} # Prepare the environment for n clients
 cd ~/NVFlare/examples/hello-world
 cp -r parking-federated-training/jobs/parking-federated-training/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/admin@nvidia.com/transfer/
 
