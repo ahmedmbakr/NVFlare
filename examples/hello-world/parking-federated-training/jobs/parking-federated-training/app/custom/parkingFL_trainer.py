@@ -100,8 +100,7 @@ class ParkingFL_Trainer(ModelLearner):
         self.info(f"Number of classes: {self.num_classes}, Learning rate: {self._lr}, Number of epochs: {self._epochs}, Batch size: {self.batch_size}, data path: {self.data_path}, valid_detection_threshold: {self._valid_detection_threshold}")
 
         # Training setup
-        self.model = ResnetFasterRCNN(self.num_classes)
-        # self.model = ResnetFasterRCNN.__get_model(self.num_classes)
+        self.model = ResnetFasterRCNN.get_pretrained_model(self.num_classes)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.loss = nn.CrossEntropyLoss()
@@ -248,8 +247,8 @@ class ParkingFL_Trainer(ModelLearner):
         # Before loading weights, tensors might need to be reshaped to support HE for secure aggregation.
         local_var_dict = self.model.state_dict()
         model_keys = global_weights.keys()
-        self.info(f'AB: global_weights keys: {model_keys}')
-        self.info(f'AB: local_var_dict keys: {local_var_dict.keys()}')
+        # self.info(f'AB: global_weights keys: {model_keys}')
+        # self.info(f'AB: local_var_dict keys: {local_var_dict.keys()}')
         n_loaded = 0
         for var_name in local_var_dict:
             if var_name in model_keys:
@@ -274,21 +273,27 @@ class ParkingFL_Trainer(ModelLearner):
         # AB: No need to validate the model on the training data. We will only validate the model on the validation data.
         # train_acc = self._validate(self._train_loader)
         # self.info(f"training acc ({model_owner}): {train_acc:.4f}")
+        if self.global_epoch == len(self.overall_trackers['val_acc']):
+            # I did this because the evaluation is called 6 times that I do not want. First, using the initial model before the start of the training. Then, at the end 5 times at the last epoch. It validates on the same model for the same client. I only need one reading from them. This is a bug that I need to fix. # TODO: AB: Replace the final validation by validating different model from the users.
+            metrics = self._validate(self._validate_loader, self.global_epoch, self.fl_ctx, self._valid_detection_threshold)
+            self.info(f"Validation completed for round: {self.global_epoch}, global_epoch: {self.global_epoch}. mAP: {self.overall_trackers['val_acc'][self.global_epoch]['mAP']}, AP: {self.overall_trackers['val_acc'][self.global_epoch]['ap']}, log_avg_miss_rate: {self.overall_trackers['val_acc'][self.global_epoch]['log_avg_miss_rate']}")
 
-        mAP = self._validate(self._validate_loader, self.global_epoch, self.fl_ctx, self._valid_detection_threshold)
-        self.overall_trackers['val_acc'].append(mAP)
-        self.info(f"Validation completed for round: {self.global_epoch}, global_epoch: {self.global_epoch}. mAP: {self.overall_trackers['val_acc'][self.global_epoch]['mAP']}, AP: {self.overall_trackers['val_acc'][self.global_epoch]['ap']}, log_avg_miss_rate: {self.overall_trackers['val_acc'][self.global_epoch]['log_avg_miss_rate']}")
-        self.info("Evaluation finished. Returning result")
+            self.overall_trackers['val_acc'].append(metrics)
+            mAP = metrics['mAP']
+            
+            self.info("Evaluation finished. Returning result")
 
-        pickle_file_path = os.path.abspath(os.path.join(self.outputs_dir, 'overall_trackers.pkl'))
-        pickle.dump(self.overall_trackers, open(pickle_file_path, 'wb')) # AB: Save the training trackers to the disk after each epoch
+            pickle_file_path = os.path.abspath(os.path.join(self.outputs_dir, 'overall_trackers.pkl'))
+            pickle.dump(self.overall_trackers, open(pickle_file_path, 'wb')) # AB: Save the training trackers to the disk after each epoch
 
-        if mAP > self.best_mAP:
-            self.best_mAP = mAP
-            self.save_model(is_best=True)
+            if mAP > self.best_mAP:
+                self.best_mAP = mAP
+                self.save_model(is_best=True)
 
-        # val_results = {"train_accuracy": train_acc, "val_accuracy": val_acc} # AB: Commented because we are not validating the model on the training data.
-        val_results = {"mAP": mAP}
+            # val_results = {"train_accuracy": train_acc, "val_accuracy": val_acc} # AB: Commented because we are not validating the model on the training data.
+            val_results = {"mAP": mAP}
+        else:
+            val_results = {"mAP": -1} # AB: This is a hack default value.
         return FLModel(metrics=val_results)
 
     def save_model(self, is_best=False):
@@ -298,8 +303,8 @@ class ParkingFL_Trainer(ModelLearner):
         # save model
         model_weights = self.model.state_dict()
         save_dict = {"model_weights": model_weights, "epoch": self.global_epoch}
-        model_path = os.path.abspath(os.path.join(self.models_dir, f"model_{self.global_epoch}_{self.local_epoch}_{self.global_epoch}.pth"))
         if is_best:
+            model_path = os.path.abspath(os.path.join(self.models_dir, f"best_local_model.pt"))
             save_dict.update({"best_mAP": self.best_mAP})
             # Remove the previous saved model
             os.system(f"rm {self.models_dir}/*.pth")
@@ -307,7 +312,9 @@ class ParkingFL_Trainer(ModelLearner):
             torch.save(save_dict, model_path)
             self.best_local_model_file = model_path
         else:
+            model_path = os.path.abspath(os.path.join(self.models_dir, f"local_model.pt"))
             torch.save(save_dict, model_path)
+        self.info(f"Client {self.site_name} Model saved to {model_path}")
 
     def _local_train(self, fl_ctx, model_global):
         len_dataloader = len(self._train_loader)

@@ -119,8 +119,15 @@ class ParkingFL_Tester(Executor):
         from parkingFL_trainer import class_id_to_name_dict
         self.model.load_state_dict(weights)
 
-        mAP_val_prediction_directory = os.path.abspath(os.path.join(self.outputs_dir, 'mapInput/detection-results'))
-        mAP_val_gt_directory = os.path.abspath(os.path.join(self.outputs_dir, "mapInput/ground-truth"))
+        mAP = ParkingFL_Tester.validate_model_on_test_data(self.model, model_owner, self.outputs_dir, self.device, self._test_loader, self._valid_detection_threshold)
+        return mAP
+    
+    @staticmethod
+    def validate_model_on_test_data(model, model_owner, outputs_dir, device, test_loader, valid_detection_threshold):
+        from parkingFL_trainer import class_id_to_name_dict
+
+        mAP_val_prediction_directory = os.path.abspath(os.path.join(outputs_dir, 'mapInput/detection-results'))
+        mAP_val_gt_directory = os.path.abspath(os.path.join(outputs_dir, "mapInput/ground-truth"))
 
         # If the directories exist, remove them
         if os.path.exists(mAP_val_prediction_directory):
@@ -132,18 +139,13 @@ class ParkingFL_Tester(Executor):
         os.makedirs(mAP_val_prediction_directory)
         os.makedirs(mAP_val_gt_directory)
 
-        self.model.eval()  # Set the model to evaluation mode
-        device = self.device
-        len_val_loader = len(self._test_loader)
+        model.eval()  # Set the model to evaluation mode
+        len_val_loader = len(test_loader)
         with torch.no_grad():  # No need to track gradients
-            for batch_id, (imgs, annotations) in enumerate(self._test_loader):
-                if abort_signal.triggered:
-                    # If abort_signal is triggered, we simply return.
-                    # The outside function will check it again and decide steps to take.
-                    return
+            for batch_id, (imgs, annotations) in enumerate(test_loader):
                 imgs = list(img.to(device) for img in imgs)
                 annotations = [{k: v.to(device) for k, v in t.items()} for t in annotations]
-                predictions = self.model(imgs)  # Get model predictions
+                predictions = model(imgs)  # Get model predictions
                 
                 for i, prediction in enumerate(predictions):
                     # Post-process the predictions to remove low scoring parts
@@ -152,7 +154,7 @@ class ParkingFL_Tester(Executor):
                     pred_labels = prediction['labels']
 
                     # Filter out predictions based on detection threshold
-                    keep = pred_scores > self._valid_detection_threshold
+                    keep = pred_scores > valid_detection_threshold
                     pred_boxes = pred_boxes[keep].cpu().numpy().tolist()
                     pred_labels = pred_labels[keep].cpu().numpy().tolist()
                     pred_scores = pred_scores[keep].cpu().numpy().tolist()
@@ -180,13 +182,13 @@ class ParkingFL_Tester(Executor):
         print("\n")
         from mAP import calculate_mAP
         mAP_val_input_dir = os.path.abspath(os.path.join(mAP_val_prediction_directory, '..'))
-        mAP_val_output_dir = os.path.abspath(os.path.join(self.outputs_dir, f'mapOutputs/testOn_{model_owner}'))
+        mAP_val_output_dir = os.path.abspath(os.path.join(outputs_dir, f'mapOutputs/testOn_{model_owner}'))
 
         if os.path.exists(mAP_val_output_dir):
             os.system(f"rm -rf {mAP_val_output_dir}")
         os.makedirs(mAP_val_output_dir)
         
-        self.log_info(fl_ctx, f"mAP_val_input_dir: {mAP_val_input_dir}, mAP_val_output_dir: {mAP_val_output_dir}")
+        print(f"mAP_val_input_dir: {mAP_val_input_dir}, mAP_val_output_dir: {mAP_val_output_dir}")
         metric = calculate_mAP(mAP_val_input_dir, mAP_val_output_dir)
-        self.log_info(fl_ctx,f"Validation complete on the model from {model_owner} with the results mAP: {metric['mAP']}, ap: {metric['ap']}, log_avg_miss_rate: {metric['log_avg_miss_rate']}")
+        print(f"Validation complete on the model from {model_owner} with the results mAP: {metric['mAP']}, ap: {metric['ap']}, log_avg_miss_rate: {metric['log_avg_miss_rate']}")
         return metric['mAP'] # Return only the mAP
