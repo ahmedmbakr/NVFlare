@@ -1,3 +1,4 @@
+# Make sure to run the save_pretrained_file scrpt before running this file. In addition, make sure that the output path of the pretrained model is the same as the path provided in the config_fed_server.json file.
 NUM_CLIENTS=4
 GPU_ASSIGN_PER_CLIENT="0 1 2 3"
 export NVFLARE_POC_WORKSPACE="/tmp/bakr-nvflare/poc" # Set the workspace for the NVFlare PoC. You cannot change this variable name as it is used by the NVFlare PoC scripts.

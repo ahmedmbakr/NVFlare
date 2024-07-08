@@ -7,14 +7,10 @@ import torch.nn.functional as F
 class ResnetFasterRCNN(FastRCNNPredictor):
     def __init__(self, num_classes=3): # 3 classes: space-empty, space-occupied, background
         super(ResnetFasterRCNN, self).__init__(in_channels=3, num_classes=num_classes)
-        self.num_classes = num_classes
-        self = ResnetFasterRCNN.__get_model(num_classes)
-    
-    def get_model(self): # TODO: AB: To be removed
-        return self.__get_model(self.num_classes) 
+        self = ResnetFasterRCNN.get_pretrained_model(num_classes) # AB: This does not yield the required results. I depend on get_pretrained_model function to get the model
 
     @staticmethod
-    def __get_model(num_classes):
+    def get_pretrained_model(num_classes):
         # load an instance segmentation model pre-trained pre-trained on COCO
         model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT) # TODO: AB: Experiment with this. If you want to use a pre-trained model, set it to True
         # get number of input features for the classifier

@@ -11,10 +11,7 @@
       "id": "persistor",
       "name": "PTFileModelPersistor",
       "args": {
-          "model": {
-              "path": "Resnet.ResnetFasterRCNN",
-              "args": {}
-          }
+        "source_ckpt_file_full_name": "/home/bakr/NVFlare/examples/hello-world/parking-federated-training/utils/resnet_pretrained_model.pth"
       }
     },
     {
@@ -41,7 +38,7 @@
         "name": "FedAvg",
         "args": {
             "min_clients" : 4,
-            "num_rounds" : 3,
+            "num_rounds" : 100,
             "persistor_id": "persistor"
         }
       },
@@ -52,7 +49,7 @@
           "model_locator_id": "model_locator",
           "submit_model_timeout": 600,
           "validation_timeout": 6000,
-          "cleanup_models": true
+          "cleanup_models": false
         }
       }
   ]
