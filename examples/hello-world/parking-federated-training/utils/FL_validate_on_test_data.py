@@ -56,10 +56,10 @@ if __name__ == "__main__":
     POC_WORKSPACE = "/tmp/bakr-nvflare/poc/example_project/prod_00"
     task_id = "16e9e73b-c262-4580-8482-f35fe4ebf6a2"
     models_full_paths_list = [
-        f'{POC_WORKSPACE}/site-1/{task_id}/app_site-1/outputs/models/model_93_0_93.pth', # Client 1
-        f'{POC_WORKSPACE}/site-2/{task_id}/app_site-2/outputs/models/model_72_0_72.pth', # Client 2
-        f'{POC_WORKSPACE}/site-3/{task_id}/app_site-3/outputs/models/model_91_0_91.pth', # Client 3
-        f'{POC_WORKSPACE}/site-4/{task_id}/app_site-4/outputs/models/model_96_0_96.pth', # Client 4
+        f'{POC_WORKSPACE}/site-1/{task_id}/app_site-1/outputs/models/model_99_0_99.pth', # Client 1
+        f'{POC_WORKSPACE}/site-2/{task_id}/app_site-2/outputs/models/model_99_0_99.pth', # Client 2
+        f'{POC_WORKSPACE}/site-3/{task_id}/app_site-3/outputs/models/model_99_0_99.pth', # Client 3
+        f'{POC_WORKSPACE}/site-4/{task_id}/app_site-4/outputs/models/model_99_0_99.pth', # Client 4
         f'{POC_WORKSPACE}/FL_global_model.pt' # Server
         ]
     models_names = ['site-1', 'site-2', 'site-3', 'site-4', 'server']
