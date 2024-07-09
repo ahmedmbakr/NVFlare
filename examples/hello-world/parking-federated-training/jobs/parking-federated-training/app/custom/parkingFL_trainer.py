@@ -276,9 +276,8 @@ class ParkingFL_Trainer(ModelLearner):
         if self.global_epoch == len(self.overall_trackers['val_acc']):
             # I did this because the evaluation is called 6 times that I do not want. First, using the initial model before the start of the training. Then, at the end 5 times at the last epoch. It validates on the same model for the same client. I only need one reading from them. This is a bug that I need to fix. # TODO: AB: Replace the final validation by validating different model from the users.
             metrics = self._validate(self._validate_loader, self.global_epoch, self.fl_ctx, self._valid_detection_threshold)
-            self.info(f"Validation completed for round: {self.global_epoch}, global_epoch: {self.global_epoch}. mAP: {self.overall_trackers['val_acc'][self.global_epoch]['mAP']}, AP: {self.overall_trackers['val_acc'][self.global_epoch]['ap']}, log_avg_miss_rate: {self.overall_trackers['val_acc'][self.global_epoch]['log_avg_miss_rate']}")
-
             self.overall_trackers['val_acc'].append(metrics)
+            self.info(f"Validation completed for round: {self.global_epoch}, global_epoch: {self.global_epoch}. mAP: {self.overall_trackers['val_acc'][self.global_epoch]['mAP']}, AP: {self.overall_trackers['val_acc'][self.global_epoch]['ap']}, log_avg_miss_rate: {self.overall_trackers['val_acc'][self.global_epoch]['log_avg_miss_rate']}")
             mAP = metrics['mAP']
             
             self.info("Evaluation finished. Returning result")

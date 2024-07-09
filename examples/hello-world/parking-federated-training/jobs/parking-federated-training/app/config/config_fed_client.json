@@ -28,7 +28,7 @@
       "args": {
           "data_path": "{datasetpath}",
           "lr": 0.001,
-          "fedproxloss_mu": 0,
+          "fedproxloss_mu": 1e-5,
           "epochs": 1,
           "num_classes": "{num_classes}",
           "batch_size": "{batch_size}",

@@ -54,14 +54,14 @@ def validate_on_test_data(poc_workspace: str, models_full_paths_list: list, mode
         
 if __name__ == "__main__":
     POC_WORKSPACE = "/tmp/bakr-nvflare/poc/example_project/prod_00"
-    task_id = "16e9e73b-c262-4580-8482-f35fe4ebf6a2"
+    task_id = "ec9e8d6c-626c-4282-bc20-6206eb865a54"
     models_full_paths_list = [
-        f'{POC_WORKSPACE}/site-1/{task_id}/app_site-1/outputs/models/model_99_0_99.pth', # Client 1
-        f'{POC_WORKSPACE}/site-2/{task_id}/app_site-2/outputs/models/model_99_0_99.pth', # Client 2
-        f'{POC_WORKSPACE}/site-3/{task_id}/app_site-3/outputs/models/model_99_0_99.pth', # Client 3
-        f'{POC_WORKSPACE}/site-4/{task_id}/app_site-4/outputs/models/model_99_0_99.pth', # Client 4
+        f'{POC_WORKSPACE}/site-1/{task_id}/app_site-1/outputs/models/local_model.pt', # Client 1
+        f'{POC_WORKSPACE}/site-2/{task_id}/app_site-2/outputs/models/local_model.pt', # Client 2
+        f'{POC_WORKSPACE}/site-3/{task_id}/app_site-3/outputs/models/local_model.pt', # Client 3
+        f'{POC_WORKSPACE}/site-4/{task_id}/app_site-4/outputs/models/local_model.pt', # Client 4
         f'{POC_WORKSPACE}/FL_global_model.pt' # Server
-        ]
+    ]
     models_names = ['site-1', 'site-2', 'site-3', 'site-4', 'server']
     test_coco_full_path_pattern = POC_WORKSPACE + "/site-{}/data/test/_annotations.coco.json"
     num_clients = 4

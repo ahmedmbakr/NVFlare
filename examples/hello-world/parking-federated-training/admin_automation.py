@@ -5,6 +5,7 @@ Date: 2024-06-09
 """
 
 from nvflare.fuel.flare_api.flare_api import *
+from utils.FL_validate_on_test_data import validate_on_test_data
 import os
 
 """
@@ -42,7 +43,20 @@ def visualize_graphs(num_clients, job_id, trackers_file_path_pattern):
         from utils.visualize_exp_pkl import visualize_pkl_file
         visualize_pkl_file(trackers_file_path, vis_figures_folder_path)
         print("Visualizations for site{} are saved to the path: {}".format(i, vis_figures_folder_path))
-    
+
+def test_models_on_test_data(poc_workspace, job_id, num_clients, valid_detection_threshold=0.5, batch_size=6, num_workers=4):
+    models_full_paths_list = []
+    models_names = []
+    for i in range(1, num_clients + 1):
+        models_full_paths_list.append(f'{poc_workspace}/site-{i}/{job_id}/app_site-{i}/outputs/models/local_model.pt')
+        models_names.append(f'site-{i}')
+
+    models_full_paths_list.append(f'{poc_workspace}/FL_global_model.pt') # Server' model
+    models_names.append('server')
+
+    test_coco_full_path_pattern = poc_workspace + "/site-{}/data/test/_annotations.coco.json"
+    outputs_dir = os.path.abspath(os.path.join(poc_workspace, 'test_data_outputs'))
+    _ = validate_on_test_data(poc_workspace, models_full_paths_list, models_names, num_clients, test_coco_full_path_pattern, outputs_dir, valid_detection_threshold, batch_size, num_workers)
 
 if __name__ == "__main__":
     POC_WORKSPACE = "/tmp/bakr-nvflare/poc/example_project/prod_00"
@@ -82,12 +96,13 @@ if __name__ == "__main__":
         os.system(f"cp {server_logs_path} {POC_WORKSPACE}/server_logs.txt")
         print("saved the server logs to the path: ", f"{POC_WORKSPACE}/server_logs.txt")
 
-        # Create a zip file of the POC output to save the experiment results. # AB: This part is commented for now because I will need to remove most of the models manually from the output models folder before zipping the output. TODO: AB: This will be decided later if this is needed or not.
+        visualize_graphs(NUM_CLIENTS, job_id, TRACKERS_FILE_PATH)
+
+        test_models_on_test_data(POC_WORKSPACE, job_id, NUM_CLIENTS)
         # Original command: zip -r ~/NVFlare/examples/hello-world/parking-federated-training/poc_output.zip /tmp/bakr-nvflare/poc/example_project/prod_00
         zip_file_path = os.path.join(dir_path, "poc_output.zip")
         os.system(f"zip -r {zip_file_path} {POC_WORKSPACE}/..")
         print("POC output is zipped to the path: ", zip_file_path)
-        visualize_graphs(NUM_CLIENTS, job_id, TRACKERS_FILE_PATH)
 
     finally:
         sess.close()
