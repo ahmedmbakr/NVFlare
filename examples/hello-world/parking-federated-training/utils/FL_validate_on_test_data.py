@@ -46,6 +46,7 @@ def validate_on_test_data(poc_workspace: str, models_full_paths_list: list, mode
             print("mAP for model {} on client {} data is: {}".format(model_owner, client_idx + 1, mAP))
     # Save the results in a csv file.
     np.savetxt(os.path.join(outputs_dir, "validation_results.csv"), validation_results, delimiter=",")
+    print("Final results saved in: ", os.path.join(outputs_dir, "validation_results.csv"))
     # Print the results in a table format
     print("Final Validation Results:")
     print(validation_results)

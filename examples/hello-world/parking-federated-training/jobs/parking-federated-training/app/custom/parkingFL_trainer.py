@@ -170,6 +170,7 @@ class ParkingFL_Trainer(ModelLearner):
         self.overall_trackers = {"train_loss": [], "val_acc": []}
         self.best_mAP = 0.0
         self.best_local_model_file = None # Its value is set inside the save_model function.
+        self.is_allowed_to_perform_validation_flag = True # This is a flag to allow the validation only once after the last epoch. It is set to False after the last epoch.
 
         # AB: Note that the data is downloaded on my local machine in the path: "~/data", and it is shared between all the clients.
         print(f"ParkingFL_Trainer initialized: This is the path of the data: {self.data_path} for client: {self.site_name}") # AB: This was just to make sure that print statements will be displayed in the output. It is displayed in the CMD, but not in the log files, which is expected.
@@ -273,11 +274,16 @@ class ParkingFL_Trainer(ModelLearner):
         # AB: No need to validate the model on the training data. We will only validate the model on the validation data.
         # train_acc = self._validate(self._train_loader)
         # self.info(f"training acc ({model_owner}): {train_acc:.4f}")
-        if self.global_epoch == len(self.overall_trackers['val_acc']):
+        current_round = self.current_round - 1 # AB: I think the current_round is incremented before the validation. So, I need to decrement it by one to get the correct round number.
+        self.info(f"AB: Validation started for round: {current_round}, global_epoch: {self.global_epoch}")
+        if self.global_epoch >=0 and self.is_allowed_to_perform_validation_flag:
             # I did this because the evaluation is called 6 times that I do not want. First, using the initial model before the start of the training. Then, at the end 5 times at the last epoch. It validates on the same model for the same client. I only need one reading from them. This is a bug that I need to fix. # TODO: AB: Replace the final validation by validating different model from the users.
-            metrics = self._validate(self._validate_loader, self.global_epoch, self.fl_ctx, self._valid_detection_threshold)
+            if current_round == self.total_rounds - 1:
+                self.is_allowed_to_perform_validation_flag = False
+                self.info(f"AB: Validation is not allowed after round: {current_round}, global_epoch: {self.global_epoch}")
+            metrics = self._validate(self._validate_loader, current_round, self.fl_ctx, self._valid_detection_threshold)
             self.overall_trackers['val_acc'].append(metrics)
-            self.info(f"Validation completed for round: {self.global_epoch}, global_epoch: {self.global_epoch}. mAP: {self.overall_trackers['val_acc'][self.global_epoch]['mAP']}, AP: {self.overall_trackers['val_acc'][self.global_epoch]['ap']}, log_avg_miss_rate: {self.overall_trackers['val_acc'][self.global_epoch]['log_avg_miss_rate']}")
+            self.info(f"Validation completed for round: {current_round}, global_epoch: {self.global_epoch}. mAP: {self.overall_trackers['val_acc'][current_round]['mAP']}, AP: {self.overall_trackers['val_acc'][current_round]['ap']}, log_avg_miss_rate: {self.overall_trackers['val_acc'][current_round]['log_avg_miss_rate']}")
             mAP = metrics['mAP']
             
             self.info("Evaluation finished. Returning result")
@@ -306,7 +312,7 @@ class ParkingFL_Trainer(ModelLearner):
             model_path = os.path.abspath(os.path.join(self.models_dir, f"best_local_model.pt"))
             save_dict.update({"best_mAP": self.best_mAP})
             # Remove the previous saved model
-            os.system(f"rm {self.models_dir}/*.pth")
+            os.system(f"rm {self.models_dir}/*.pt")
             # Save the new best model
             torch.save(save_dict, model_path)
             self.best_local_model_file = model_path
@@ -355,7 +361,7 @@ class ParkingFL_Trainer(ModelLearner):
 
             epoch_loss = running_loss / len(self._train_loader)
             self.log_info(
-                        fl_ctx, f"AB: Round: {self.global_epoch}, Epoch: {local_epoch}/{self._epochs}, global epoch: {self.global_epoch}, Iteration: {i}, " f"Loss: {epoch_loss}")
+                        fl_ctx, f"AB: Round: {self.current_round}, Epoch: {local_epoch}/{self._epochs}, global epoch: {self.global_epoch}, Iteration: {i}, " f"Loss: {epoch_loss}")
             self.overall_trackers['train_loss'].append(epoch_loss)
 
             # Display the time taken for the local_epoch
