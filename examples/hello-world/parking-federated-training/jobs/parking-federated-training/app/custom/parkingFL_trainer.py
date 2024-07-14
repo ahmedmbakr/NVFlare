@@ -43,6 +43,8 @@ from nvflare.app_common.abstract.model_learner import ModelLearner
 from nvflare.app_common.app_constant import AppConstants, ModelName, ValidateType
 from nvflare.app_common.utils.fl_model_utils import FLModelUtils
 from nvflare.apis.fl_constant import FLMetaKey, ReturnCode
+from nvflare.app_opt.pt.scaffold import PTScaffoldHelper, get_lr_values
+from nvflare.app_common.app_constant import AlgorithmConstants
 
 class_id_to_name_dict = {1: "Space-empty", 2: "Space-occupied"}
 
@@ -85,6 +87,8 @@ class ParkingFL_Trainer(ModelLearner):
         self.fedproxloss_mu = fedproxloss_mu
         self.shuffle_training_data_enable = shuffle_training_data_enable
         self.num_workers_dl = num_workers_dl
+
+        self.scaffold_helper = PTScaffoldHelper()
 
     def initialize(self):
         """
@@ -172,6 +176,8 @@ class ParkingFL_Trainer(ModelLearner):
         self.best_local_model_file = None # Its value is set inside the save_model function.
         self.is_allowed_to_perform_validation_flag = True # This is a flag to allow the validation only once after the last epoch. It is set to False after the last epoch.
 
+        self.scaffold_helper.init(model=self.model)
+
         # AB: Note that the data is downloaded on my local machine in the path: "~/data", and it is shared between all the clients.
         print(f"ParkingFL_Trainer initialized: This is the path of the data: {self.data_path} for client: {self.site_name}") # AB: This was just to make sure that print statements will be displayed in the output. It is displayed in the CMD, but not in the log files, which is expected.
 
@@ -182,6 +188,20 @@ class ParkingFL_Trainer(ModelLearner):
         # get round information
         self.info(f"Enter train function for Client: {self.site_name}. Current/Total Round: {self.current_round + 1}/{self.total_rounds}")
         self.info(f"Client identity: {self.site_name}")
+
+        # return FLModel with extra control differences for SCAFFOLD
+        if AlgorithmConstants.SCAFFOLD_CTRL_GLOBAL not in model.meta:
+            raise ValueError(
+                f"Expected model meta to contain AlgorithmConstants.SCAFFOLD_CTRL_GLOBAL "
+                f"but meta was {model.meta}.",
+            )
+        global_ctrl_weights = model.meta.get(AlgorithmConstants.SCAFFOLD_CTRL_GLOBAL)
+        if not global_ctrl_weights:
+            raise ValueError("global_ctrl_weights were empty!")
+        # convert to tensor and load into c_global model
+        for k in global_ctrl_weights.keys():
+            global_ctrl_weights[k] = torch.as_tensor(global_ctrl_weights[k])
+        self.scaffold_helper.load_global_controls(weights=global_ctrl_weights)
 
         # update local model weights with received weights
         global_weights = model.params
@@ -232,6 +252,10 @@ class ParkingFL_Trainer(ModelLearner):
         fl_model = FLModel(params_type=ParamsType.DIFF, params=model_diff)
 
         FLModelUtils.set_meta_prop(fl_model, FLMetaKey.NUM_STEPS_CURRENT_ROUND, epoch_len)
+
+        # Add scaffold controls to resulting model
+        fl_model.meta[AlgorithmConstants.SCAFFOLD_CTRL_DIFF] = self.scaffold_helper.get_delta_controls()
+
         self.info("Local epochs finished. Returning FLModel")
         return fl_model
 
@@ -322,6 +346,8 @@ class ParkingFL_Trainer(ModelLearner):
         self.info(f"Client {self.site_name} Model saved to {model_path}")
 
     def _local_train(self, fl_ctx, model_global):
+
+        c_global_para, c_local_para = self.scaffold_helper.get_params()
         len_dataloader = len(self._train_loader)
 
         # Basic training
@@ -354,6 +380,13 @@ class ParkingFL_Trainer(ModelLearner):
                 self.optimizer.zero_grad()
                 losses.backward()
                 self.optimizer.step()
+
+                # SCAFFOLD step
+                curr_lr = get_lr_values(self.optimizer)[0]
+                self.scaffold_helper.model_update(
+                    model=self.model, curr_lr=curr_lr, c_global_para=c_global_para, c_local_para=c_local_para
+                )
+
                 if i % 10 == 0:
                     self.log_info(fl_ctx, f"AB: Round: {self.current_round}, Epoch: {local_epoch}/{self._epochs}, Global epoch: {self.global_epoch}, Iteration: {i}/{len_dataloader}, Loss: {losses}")
 
@@ -369,6 +402,15 @@ class ParkingFL_Trainer(ModelLearner):
             from datetime import timedelta
             td = timedelta(seconds=epoch_end_time - start_time)
             self.log_info(fl_ctx, f"Epoch {self.global_epoch} took: {td}")
+        
+        # Update the SCAFFOLD terms
+        self.scaffold_helper.terms_update(
+            model=self.model,
+            curr_lr=curr_lr,
+            c_global_para=c_global_para,
+            c_local_para=c_local_para,
+            model_global=model_global,
+        )
 
     def _validate(self, val_loader, epoch, fl_ctx, detection_threshold=0.5):
         """
