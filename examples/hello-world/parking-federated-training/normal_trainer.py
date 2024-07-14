@@ -295,7 +295,7 @@ class ParkingTrainer:
 
 
 if __name__ == "__main__":
-    PKLOT_CNR_TRAINING_SELECTOR = 'UFPR05'
+    PKLOT_CNR_TRAINING_SELECTOR = 'CNR'
     if PKLOT_CNR_TRAINING_SELECTOR == 'PKLOT':
         import pklot_trainer_config as config
     elif PKLOT_CNR_TRAINING_SELECTOR == 'PUCPR':

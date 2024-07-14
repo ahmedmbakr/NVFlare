@@ -33,9 +33,10 @@ def visualize_pkl_file(pickle_file_path, save_folder_path=None):
     max_mAP = max(mAPs)
     max_mAP_index = mAPs.index(max_mAP) # Get index of the maximum mAP
     fig, ax = plt.subplots()
-    ax.plot(epochs_arr, space_empty_ap, label="Space-empty AP")
-    ax.plot(epochs_arr, space_occupied_ap, label="Space-occupied AP")
-    ax.plot(epochs_arr, mAPs, label="mAP")
+    rounds_arr = np.arange(len(mAPs))
+    ax.plot(rounds_arr, space_empty_ap, label="Space-empty AP")
+    ax.plot(rounds_arr, space_occupied_ap, label="Space-occupied AP")
+    ax.plot(rounds_arr, mAPs, label="mAP")
     ax.plot(max_mAP_index, max_mAP, 'xg') # Draw a mark on the maximum point
     # Put text on top of this point with the maximum mAP and make the text color green
     ax.annotate(f"({max_mAP_index},{max_mAP:0.4f})", (max_mAP_index, max_mAP), textcoords="offset points", xytext=(0,5), ha='center', color='g')
@@ -56,8 +57,8 @@ def visualize_pkl_file(pickle_file_path, save_folder_path=None):
     log_avg_miss_rate_space_empty = [x['log_avg_miss_rate']['Space-empty'] for x in data['val_acc']]
     log_avg_miss_rate_space_occupied = [x['log_avg_miss_rate']['Space-occupied'] for x in data['val_acc']]
     fig, ax = plt.subplots()
-    ax.plot(epochs_arr, log_avg_miss_rate_space_empty, label="Space-empty")
-    ax.plot(epochs_arr, log_avg_miss_rate_space_occupied, label="Space-occupied")
+    ax.plot(rounds_arr, log_avg_miss_rate_space_empty, label="Space-empty")
+    ax.plot(rounds_arr, log_avg_miss_rate_space_occupied, label="Space-occupied")
     ax.plot(max_mAP_index, max_mAP, 'xg') # Draw a mark on the maximum point
     # Draw a vertical line from the maximum point to the x-axis
     ax.axvline(x=max_mAP_index, color='g', linestyle='--', label="Max mAP")

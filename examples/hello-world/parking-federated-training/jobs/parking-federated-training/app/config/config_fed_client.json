@@ -7,32 +7,30 @@
   "valid_detection_threshold": 0.5,
   "executors": [
     {
-      "tasks": ["train", "submit_model", "get_weights"],
+      "tasks": ["train", "submit_model", "validate"],
       "executor": {
-        "path": "parkingFL_trainer.ParkingFL_Trainer",
+        "id": "Executor",
+        "path": "nvflare.app_common.executors.model_learner_executor.ModelLearnerExecutor",
         "args": {
+            "learner_id": "parkingFL-learner"
+        }
+      }
+    }
+  ],
+  "components": [
+    {
+      "id": "parkingFL-learner",
+      "path": "parkingFL_trainer.ParkingFL_Trainer",
+      "args": {
           "data_path": "{datasetpath}",
           "lr": 0.001,
-          "epochs": 1,
+          "fedproxloss_mu": 1e-5,
+          "epochs": 2,
           "num_classes": "{num_classes}",
           "batch_size": "{batch_size}",
           "num_workers_dl": "{num_workers_dl}",
           "valid_detection_threshold": "{valid_detection_threshold}"
         }
-      }
-    },
-    {
-      "tasks": ["validate"],
-      "executor": {
-        "path": "parkingFL_Tester.ParkingFL_Tester",
-        "args": {
-          "data_path": "{datasetpath}",
-          "num_classes": "{num_classes}",
-          "batch_size": "{batch_size}",
-          "num_workers_dl": "{num_workers_dl}",
-          "valid_detection_threshold": "{valid_detection_threshold}"
-        }
-      }
     }
   ],
   "task_result_filters": [
@@ -70,7 +68,5 @@
         }
       ]
     }
-  ],
-  "components": [
   ]
 }
