@@ -25,7 +25,7 @@
           "data_path": "{datasetpath}",
           "lr": 0.001,
           "fedproxloss_mu": 1e-5,
-          "epochs": 2,
+          "epochs": 1,
           "num_classes": "{num_classes}",
           "batch_size": "{batch_size}",
           "num_workers_dl": "{num_workers_dl}",

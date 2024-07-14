@@ -12,7 +12,8 @@
       "name": "PTFileModelPersistor",
       "args": {
         "source_ckpt_file_full_name": "/home/bakr/NVFlare/examples/hello-world/parking-federated-training/utils/resnet_pretrained_model.pth"
-      }
+      },
+      "filter_id": "serialize_filter"
     },
     {
       "id": "model_selector",
@@ -30,6 +31,24 @@
       "id": "json_generator",
       "name": "ValidationJsonGenerator",
       "args": {}
+    },
+    {
+      "id": "serialize_filter",
+      "name": "HEModelSerializeFilter",
+      "args": {
+      }
+    },
+    {
+      "id": "shareable_generator",
+      "name": "HEModelShareableGenerator",
+      "args": {}
+    },
+    {
+      "id": "aggregator",
+      "name": "HEInTimeAccumulateWeightedAggregator",
+      "args": {
+        "weigh_by_local_iter": false
+      }
     }
   ],
   "workflows": [
@@ -40,7 +59,8 @@
             "min_clients" : 4,
             "shareable_generator_id": "shareable_generator",
             "num_rounds" : 50,
-            "persistor_id": "persistor"
+            "persistor_id": "persistor",
+            "aggregator_id": "aggregator"
         }
       },
       {
