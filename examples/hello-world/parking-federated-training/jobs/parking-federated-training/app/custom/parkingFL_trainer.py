@@ -298,30 +298,34 @@ class ParkingFL_Trainer(ModelLearner):
         # AB: No need to validate the model on the training data. We will only validate the model on the validation data.
         # train_acc = self._validate(self._train_loader)
         # self.info(f"training acc ({model_owner}): {train_acc:.4f}")
-        current_round = self.current_round - 1 # AB: I think the current_round is incremented before the validation. So, I need to decrement it by one to get the correct round number.
-        self.info(f"AB: Validation started for round: {current_round}, global_epoch: {self.global_epoch}")
-        if self.global_epoch >=0 and self.is_allowed_to_perform_validation_flag:
-            # I did this because the evaluation is called 6 times that I do not want. First, using the initial model before the start of the training. Then, at the end 5 times at the last epoch. It validates on the same model for the same client. I only need one reading from them. This is a bug that I need to fix. # TODO: AB: Replace the final validation by validating different model from the users.
-            if current_round == self.total_rounds - 1:
-                self.is_allowed_to_perform_validation_flag = False
-                self.info(f"AB: Validation is not allowed after round: {current_round}, global_epoch: {self.global_epoch}")
-            metrics = self._validate(self._validate_loader, current_round, self.fl_ctx, self._valid_detection_threshold)
-            self.overall_trackers['val_acc'].append(metrics)
-            self.info(f"Validation completed for round: {current_round}, global_epoch: {self.global_epoch}. mAP: {self.overall_trackers['val_acc'][current_round]['mAP']}, AP: {self.overall_trackers['val_acc'][current_round]['ap']}, log_avg_miss_rate: {self.overall_trackers['val_acc'][current_round]['log_avg_miss_rate']}")
-            mAP = metrics['mAP']
-            
-            self.info("Evaluation finished. Returning result")
+        has_validation_result_calculated_successfully = False
+        if self.current_round:
+            current_round = self.current_round - 1 # AB: I think the current_round is incremented before the validation. So, I need to decrement it by one to get the correct round number.
+            self.info(f"AB: Validation started for round: {current_round}, global_epoch: {self.global_epoch}")
+            if self.global_epoch >=0 and self.is_allowed_to_perform_validation_flag:
+                # I did this because the evaluation is called 6 times that I do not want. First, using the initial model before the start of the training. Then, at the end 5 times at the last epoch. It validates on the same model for the same client. I only need one reading from them. This is a bug that I need to fix. # TODO: AB: Replace the final validation by validating different model from the users.
+                if current_round == self.total_rounds - 1:
+                    self.is_allowed_to_perform_validation_flag = False
+                    self.info(f"AB: Validation is not allowed after round: {current_round}, global_epoch: {self.global_epoch}")
+                metrics = self._validate(self._validate_loader, current_round, self.fl_ctx, self._valid_detection_threshold)
+                self.overall_trackers['val_acc'].append(metrics)
+                self.info(f"Validation completed for round: {current_round}, global_epoch: {self.global_epoch}. mAP: {self.overall_trackers['val_acc'][current_round]['mAP']}, AP: {self.overall_trackers['val_acc'][current_round]['ap']}, log_avg_miss_rate: {self.overall_trackers['val_acc'][current_round]['log_avg_miss_rate']}")
+                mAP = metrics['mAP']
+                
+                self.info("Evaluation finished. Returning result")
 
-            pickle_file_path = os.path.abspath(os.path.join(self.outputs_dir, 'overall_trackers.pkl'))
-            pickle.dump(self.overall_trackers, open(pickle_file_path, 'wb')) # AB: Save the training trackers to the disk after each epoch
+                pickle_file_path = os.path.abspath(os.path.join(self.outputs_dir, 'overall_trackers.pkl'))
+                pickle.dump(self.overall_trackers, open(pickle_file_path, 'wb')) # AB: Save the training trackers to the disk after each epoch
 
-            if mAP > self.best_mAP:
-                self.best_mAP = mAP
-                self.save_model(is_best=True)
+                if mAP > self.best_mAP:
+                    self.best_mAP = mAP
+                    self.save_model(is_best=True)
 
-            # val_results = {"train_accuracy": train_acc, "val_accuracy": val_acc} # AB: Commented because we are not validating the model on the training data.
-            val_results = {"mAP": mAP}
-        else:
+                # val_results = {"train_accuracy": train_acc, "val_accuracy": val_acc} # AB: Commented because we are not validating the model on the training data.
+                val_results = {"mAP": mAP}
+                has_validation_result_calculated_successfully = True
+        
+        if not has_validation_result_calculated_successfully:
             val_results = {"mAP": -1} # AB: This is a hack default value.
         return FLModel(metrics=val_results)
 
