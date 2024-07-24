@@ -229,7 +229,7 @@ def visualize_clients_per_row(structure_dict):
                 axs[i, j].yaxis.set_tick_params(labelleft=False)
 
             if i == 3: # assuming that we have only 4 clients
-                axs[i, j].set_xlabel("Round", fontsize='9')
+                axs[i, j].set_xlabel("Epoch", fontsize='9')
            
             # Set y-axis limits
             axs[i, j].set_ylim([0.25, 1.1]) 
@@ -254,7 +254,7 @@ structure_dict = {
     },
     'FedProx': {
         '1-local-epoch': 'expr-11',
-        '2-local-epochs': 'expr-11' # TODO: This should be expr-12, but the file is corrupt.
+        '2-local-epochs': 'expr-12'
     },
     'SCAFFOLD': {
         '1-local-epoch': 'expr-13',
