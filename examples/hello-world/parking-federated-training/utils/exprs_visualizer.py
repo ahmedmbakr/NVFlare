@@ -80,7 +80,7 @@ def visualize_method_per_row(structure_dict):
     plt.show()
 
     # Save the plot to a PDF file
-    losses_img_path = os.path.join(output_dir, 'fl-losses.pdf')
+    losses_img_path = os.path.join(output_dir, 'fl_losses.pdf')
     fig.savefig(losses_img_path, bbox_inches='tight')
     print(f"Losses plot saved to {losses_img_path}")
 
@@ -102,6 +102,9 @@ def visualize_method_per_row(structure_dict):
         for j, client_name in enumerate(['site-1', 'site-2', 'site-3', 'site-4']):
             for local_epochs_key_str in structure_dict[method].keys():
                 mAP = [x['mAP'] for x in data_dict[method][local_epochs_key_str][client_name]['val_acc']]
+                # If the method is FedAvg when we have 2 local epochs, take only the even rounds. This is a hack because this was the only experiment were I was evaluating every 1 local epochs instead of every 2 local epochs.
+                if method == 'FedAvg' and local_epochs_key_str == '2-local-epochs':
+                    mAP = mAP[1::2]
                 rounds_arr = np.arange(len(mAP))
                 axs[i, j].plot(rounds_arr, mAP, label=f'{local_epochs_key_str}')
             if i == 0:
@@ -132,7 +135,7 @@ def visualize_method_per_row(structure_dict):
     plt.show()
 
     # Save the plot to a PDF file
-    mAP_img_path = os.path.join(output_dir, 'fl-mAP.pdf')
+    mAP_img_path = os.path.join(output_dir, 'fl_mAP.pdf')
     fig.savefig(mAP_img_path, bbox_inches='tight')
     print(f"mAP plot saved to {mAP_img_path}")
 
@@ -214,6 +217,9 @@ def visualize_clients_per_row(structure_dict):
         for j, method in enumerate(structure_dict):
             for local_epochs_key_str in structure_dict[method].keys():
                 mAP = [x['mAP'] for x in data_dict[method][local_epochs_key_str][client_name]['val_acc']]
+                # If the method is FedAvg when we have 2 local epochs, take only the even rounds. This is a hack because this was the only experiment were I was evaluating every 1 local epochs instead of every 2 local epochs.
+                if method == 'FedAvg' and local_epochs_key_str == '2-local-epochs':
+                    mAP = mAP[1::2]
                 rounds_arr = np.arange(len(mAP))
                 line, = axs[i, j].plot(rounds_arr, mAP)
                 if len(handles) < 2:
@@ -229,7 +235,7 @@ def visualize_clients_per_row(structure_dict):
                 axs[i, j].yaxis.set_tick_params(labelleft=False)
 
             if i == 3: # assuming that we have only 4 clients
-                axs[i, j].set_xlabel("Epoch", fontsize='9')
+                axs[i, j].set_xlabel("Round", fontsize='9')
            
             # Set y-axis limits
             axs[i, j].set_ylim([0.25, 1.1]) 
