@@ -7,12 +7,16 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.abspath(os.path.join(dir_path, '../jobs/parking-federated-training/app/custom')))
 print(sys.path)
 import Resnet
+import Alexnet
 import parkingFL_Tester
 import PkLotDataLoader
 
-def validate_on_test_data(poc_workspace: str, models_full_paths_list: list, models_names, num_clients: int, test_coco_full_path_pattern: str, outputs_dir: str, valid_detection_threshold: int, batch_size: int, num_workers_dl: int, num_classes=3):
+def validate_on_test_data(poc_workspace: str, models_full_paths_list: list, models_names, num_clients: int, test_coco_full_path_pattern: str, outputs_dir: str, valid_detection_threshold: int, batch_size: int, num_workers_dl: int, model_name: str, num_classes=3):
     validation_results = np.zeros((num_clients + 1, num_clients))
-    model = Resnet.ResnetFasterRCNN.get_pretrained_model(num_classes)
+    if model_name == "resnet":
+        model = Resnet.ResnetFasterRCNN.get_pretrained_model(num_classes)
+    elif model_name == "alexnet":
+        model = Alexnet.AlexNetFasterRCNN.get_pretrained_model(num_classes)
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     checkpoint = torch.load(models_full_paths_list[-1])
@@ -30,8 +34,16 @@ def validate_on_test_data(poc_workspace: str, models_full_paths_list: list, mode
             test_coco_full_path = test_coco_full_path_pattern.format(client_idx + 1)
             # Get the directory of the test data
             test_data_dir = os.path.dirname(test_coco_full_path)
+
+            if model_name == "resnet":
+                resnetNetwork = Resnet.ResnetFasterRCNN(num_classes)
+                transforms = resnetNetwork.get_transform()
+            elif model_name == "alexnet":
+                alexNetNetwork = Alexnet.AlexNetFasterRCNN(num_classes)
+                transforms = alexNetNetwork.get_transform()
+
             test_dataset = PkLotDataLoader.PklotDataSet(
-            root_path=test_data_dir, annotation_path=test_coco_full_path, transforms=Resnet.ResnetFasterRCNN.get_transform()
+            root_path=test_data_dir, annotation_path=test_coco_full_path, transforms=transforms
             )
             test_loader = torch.utils.data.DataLoader(
                 test_dataset,
@@ -70,4 +82,5 @@ if __name__ == "__main__":
     valid_detection_threshold = 0.5
     batch_size = 6
     num_workers = 4
-    _ = validate_on_test_data(POC_WORKSPACE, models_full_paths_list, models_names, num_clients, test_coco_full_path_pattern, outputs_dir, valid_detection_threshold, batch_size, num_workers)
+    model_name = "alexnet"
+    _ = validate_on_test_data(POC_WORKSPACE, models_full_paths_list, models_names, num_clients, test_coco_full_path_pattern, outputs_dir, valid_detection_threshold, batch_size, num_workers, model_name)

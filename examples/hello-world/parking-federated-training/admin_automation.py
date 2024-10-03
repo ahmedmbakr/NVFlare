@@ -44,7 +44,7 @@ def visualize_graphs(num_clients, job_id, trackers_file_path_pattern):
         visualize_pkl_file(trackers_file_path, vis_figures_folder_path)
         print("Visualizations for site{} are saved to the path: {}".format(i, vis_figures_folder_path))
 
-def test_models_on_test_data(poc_workspace, job_id, num_clients, valid_detection_threshold=0.5, batch_size=6, num_workers=4):
+def test_models_on_test_data(poc_workspace, job_id, num_clients, model_name, valid_detection_threshold=0.5, batch_size=6, num_workers=4):
     models_full_paths_list = []
     models_names = []
     for i in range(1, num_clients + 1):
@@ -56,7 +56,7 @@ def test_models_on_test_data(poc_workspace, job_id, num_clients, valid_detection
 
     test_coco_full_path_pattern = poc_workspace + "/site-{}/data/test/_annotations.coco.json"
     outputs_dir = os.path.abspath(os.path.join(poc_workspace, 'test_data_outputs'))
-    _ = validate_on_test_data(poc_workspace, models_full_paths_list, models_names, num_clients, test_coco_full_path_pattern, outputs_dir, valid_detection_threshold, batch_size, num_workers)
+    _ = validate_on_test_data(poc_workspace, models_full_paths_list, models_names, num_clients, test_coco_full_path_pattern, outputs_dir, valid_detection_threshold, batch_size, num_workers, model_name)
 
 if __name__ == "__main__":
     POC_WORKSPACE = "/tmp/bakr-nvflare/poc/example_project/prod_00"
@@ -65,6 +65,7 @@ if __name__ == "__main__":
     POLL_STATUS_INTERVAL_SEC = 2
     NUM_CLIENTS = 4
     TRACKERS_FILE_PATH = POC_WORKSPACE + "/site-{0}/{1}/app_site-{0}/outputs/overall_trackers.pkl" # AB: Param0: site number, Param1: job_id
+    MODEL_NAME = "alexnet"
 
     import time
     # print("Waiting for 20 seconds to give the server time to start")
@@ -98,7 +99,7 @@ if __name__ == "__main__":
 
         visualize_graphs(NUM_CLIENTS, job_id, TRACKERS_FILE_PATH)
 
-        test_models_on_test_data(POC_WORKSPACE, job_id, NUM_CLIENTS)
+        test_models_on_test_data(POC_WORKSPACE, job_id, NUM_CLIENTS, MODEL_NAME)
         # Original command: zip -r ~/NVFlare/examples/hello-world/parking-federated-training/poc_output.zip /tmp/bakr-nvflare/poc/example_project/prod_00
         zip_file_path = os.path.join(dir_path, "poc_output.zip")
         os.system(f"zip -r {zip_file_path} {POC_WORKSPACE}/..")

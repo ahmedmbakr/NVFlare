@@ -14,6 +14,7 @@
 
 import torch
 from Resnet import ResnetFasterRCNN
+from Alexnet import AlexNetFasterRCNN
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 from torchvision.transforms import Compose, Normalize, ToTensor, Resize
@@ -33,7 +34,7 @@ import os
 
 class ParkingFL_Tester(Executor):
     def __init__(self, data_path, num_classes,
-        batch_size, num_workers_dl, valid_detection_threshold, validate_task_name=AppConstants.TASK_VALIDATION):
+        batch_size, num_workers_dl, valid_detection_threshold, model_name, validate_task_name=AppConstants.TASK_VALIDATION):
         super().__init__()
 
         # AB: Parameters
@@ -49,13 +50,21 @@ class ParkingFL_Tester(Executor):
         self._valid_detection_threshold = valid_detection_threshold
 
         # Setup the model
-        resnetNetwork = ResnetFasterRCNN(num_classes)
-        self.model = resnetNetwork.get_model()
+        if model_name == "resnet":
+            resnetNetwork = ResnetFasterRCNN(num_classes)
+            self.model = resnetNetwork.get_model()
+        elif model_name == "alexnet":
+            alexNetNetwork = AlexNetFasterRCNN(num_classes)
+            self.model = alexNetNetwork.get_model()
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.model.to(self.device)
 
+        if model_name == "resnet":
+            transforms = resnetNetwork.get_transform()
+        elif model_name == "alexnet":
+            transforms = alexNetNetwork.get_transform()
         test_dataset = PklotDataSet(
-            root_path=test_data_dir, annotation_path=test_coco, transforms=resnetNetwork.get_transform()
+            root_path=test_data_dir, annotation_path=test_coco, transforms=transforms
         )
 
         self._test_loader = torch.utils.data.DataLoader(

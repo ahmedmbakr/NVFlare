@@ -26,10 +26,14 @@ def show(imgs):
         axs[0, i].imshow(np.asarray(img))
         axs[0, i].set(xticklabels=[], yticklabels=[], xticks=[], yticks=[])
 
-def get_transforms(pretrained=True): # TODO: AB: Consider for now that we only use pretrained images
+def get_transforms(model_name, pretrained=True): # TODO: AB: Consider for now that we only use pretrained images
     # Transform the image
-    from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
-    weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT
+    if model_name == "resnet":
+        from torchvision.models.detection import FasterRCNN_ResNet50_FPN_Weights
+        weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT
+    elif model_name == "alexnet":
+        from torchvision.models.detection import FasterRCNN_AlexNet_Weights
+        weights = FasterRCNN_AlexNet_Weights.DEFAULT
     transforms = weights.transforms()
     return transforms
 
@@ -39,6 +43,7 @@ if __name__ == "__main__":
     image_path = '/home/bakr/CNR-EXT_FULL_IMAGE_1000x750/FULL_IMAGE_1000x750/SUNNY/2015-11-12/camera1/2015-11-12_0909.jpg'
     model_path = "/home/bakr/NVFlare/examples/hello-world/parking-federated-training/models/model_3.pth"
     score_threshold = .2
+    model_name = "alexnet" # The model name can be either "resnet" or "alexnet"
 
     # Load the model
     trainer = normal_trainer.ParkingTrainer(config=config, inference=True)
@@ -52,7 +57,7 @@ if __name__ == "__main__":
     images_list = [img]
 
     # Transform the image
-    transforms = get_transforms()
+    transforms = get_transforms(model_name)
     transformed_images = [transforms(imgx) for imgx in images_list]
 
     # Make predictions

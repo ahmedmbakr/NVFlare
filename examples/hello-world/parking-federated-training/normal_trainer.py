@@ -22,9 +22,10 @@ class_id_to_name_dict = {1: "Space-empty", 2: "Space-occupied"}
 
 class ParkingTrainer:
 
-    def __init__(self, config, inference=False, continue_training=False):
+    def __init__(self, config, model_name, inference=False, continue_training=False):
         self.config = config
         self.continue_training = continue_training
+        self.model_name = model_name
         self.outputs_dir = os.path.abspath(os.path.join(dir_path, 'outputs'))
         if os.path.exists(self.outputs_dir):
             os.system(f"rm -rf {self.outputs_dir}")
@@ -80,8 +81,12 @@ class ParkingTrainer:
     def get_transform(self):
         if self.config.pre_trained_model_allowed:
             # From: https://pytorch.org/vision/0.18/auto_examples/others/plot_repurposing_annotations.html#sphx-glr-auto-examples-others-plot-repurposing-annotations-py
-            from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
-            weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT
+            if self.model_name == 'resnet':
+                from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
+                weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT
+            elif self.model_name == 'alexnet':
+                from torchvision.models import AlexNet_Weights
+                weights = AlexNet_Weights.DEFAULT
             tranforms = weights.transforms()
             return tranforms
         else:
@@ -94,17 +99,27 @@ class ParkingTrainer:
         # https://pytorch.org/vision/main/models/generated/torchvision.models.detection.fasterrcnn_resnet50_fpn.html
         # load an instance segmentation model pre-trained pre-trained on COCO
         if not pretrained:
-            model = torchvision.models.detection.fasterrcnn_resnet50_fpn()
+            if self.model_name == 'resnet':
+                model = torchvision.models.detection.fasterrcnn_resnet50_fpn()
+            elif self.model_name == 'alexnet':
+                model = torchvision.models.alexnet()
         else:
             # Try this method and check the difference TODO: AB: Check the difference between the two methods
-            from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
-            weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT
-            model = fasterrcnn_resnet50_fpn(weights=weights, progress=False)
-
-        # get number of input features for the classifier
-        in_features = model.roi_heads.box_predictor.cls_score.in_features
-        # replace the pre-trained head with a new one
-        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+            if self.model_name == 'resnet':
+                from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
+                weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT
+                model = fasterrcnn_resnet50_fpn(weights=weights, progress=False)
+                # get number of input features for the classifier
+                in_features = model.roi_heads.box_predictor.cls_score.in_features
+                # replace the pre-trained head with a new one
+                model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+            elif self.model_name == 'alexnet':
+                from torchvision.models import AlexNet_Weights
+                weights = AlexNet_Weights.DEFAULT
+                model = torchvision.models.alexnet(weights=weights, progress=False)
+                in_features = model.classifier[6].in_features
+                # replace the pre-trained head with a new one
+                model.classifier[6] = torch.nn.Linear(in_features, num_classes)
 
         return model
     
@@ -296,6 +311,7 @@ class ParkingTrainer:
 
 if __name__ == "__main__":
     PKLOT_CNR_TRAINING_SELECTOR = 'CNR'
+    MODEL_NAME='resnet' # The model name can be either 'resnet' or 'alexnet'
     if PKLOT_CNR_TRAINING_SELECTOR == 'PKLOT':
         import pklot_trainer_config as config
     elif PKLOT_CNR_TRAINING_SELECTOR == 'PUCPR':
@@ -306,6 +322,6 @@ if __name__ == "__main__":
         import pklot_UFPR05_trainer_config as config
     elif PKLOT_CNR_TRAINING_SELECTOR == 'CNR':
         import cnr_trainer_config as config
-    trainer = ParkingTrainer(config)
+    trainer = ParkingTrainer(config, model_name=MODEL_NAME)
     trainer.local_train()
     trainer.test_model(config.test_coco_paths_list, config.test_names, config.mAP_detection_threshold)

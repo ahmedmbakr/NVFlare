@@ -33,7 +33,8 @@
           "num_classes": "{num_classes}",
           "batch_size": "{batch_size}",
           "num_workers_dl": "{num_workers_dl}",
-          "valid_detection_threshold": "{valid_detection_threshold}"
+          "valid_detection_threshold": "{valid_detection_threshold}",
+          "model_name": "alexnet"
         }
     }
   ]

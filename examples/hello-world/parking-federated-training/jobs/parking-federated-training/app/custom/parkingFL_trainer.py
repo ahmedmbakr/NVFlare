@@ -19,6 +19,7 @@ import os.path
 import torch
 from pt_constants import PTConstants
 from Resnet import ResnetFasterRCNN
+from Alexnet import AlexNetFasterRCNN
 from PkLotDataLoader import PklotDataSet, collate_fn
 from torch import nn
 from torch.optim import SGD
@@ -58,6 +59,7 @@ class ParkingFL_Trainer(ModelLearner):
         num_classes, 
         batch_size,
         valid_detection_threshold,
+        model_name,
         fedproxloss_mu: float = 0.0,
         shuffle_training_data_enable=True,
         num_workers_dl=4,
@@ -87,6 +89,7 @@ class ParkingFL_Trainer(ModelLearner):
         self.fedproxloss_mu = fedproxloss_mu
         self.shuffle_training_data_enable = shuffle_training_data_enable
         self.num_workers_dl = num_workers_dl
+        self.model_name = model_name
 
         self.scaffold_helper = PTScaffoldHelper()
 
@@ -104,7 +107,10 @@ class ParkingFL_Trainer(ModelLearner):
         self.info(f"Number of classes: {self.num_classes}, Learning rate: {self._lr}, Number of epochs: {self._epochs}, Batch size: {self.batch_size}, data path: {self.data_path}, valid_detection_threshold: {self._valid_detection_threshold}")
 
         # Training setup
-        self.model = ResnetFasterRCNN.get_pretrained_model(self.num_classes)
+        if self.model_name == "resnet":
+            self.model = ResnetFasterRCNN.get_pretrained_model(self.num_classes)
+        elif self.model_name == "alexnet":
+            self.model = AlexNetFasterRCNN.get_pretrained_model(self.num_classes)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.loss = nn.CrossEntropyLoss()
@@ -116,12 +122,19 @@ class ParkingFL_Trainer(ModelLearner):
         train_coco = os.path.join(train_data_dir, "_annotations.coco.json")
         val_coco = os.path.join(val_data_dir, "_annotations.coco.json")
 
+        if self.model_name == "resnet":
+            resnetNetwork = ResnetFasterRCNN(self.num_classes)
+            transforms = resnetNetwork.get_transform()
+        elif self.model_name == "alexnet":
+            alexNetNetwork = AlexNetFasterRCNN(self.num_classes)
+            transforms = alexNetNetwork.get_transform()
+
         self._train_dataset = PklotDataSet(
-            root_path=train_data_dir, annotation_path=train_coco, transforms=ResnetFasterRCNN.get_transform()
+            root_path=train_data_dir, annotation_path=train_coco, transforms=transforms
         )
 
         self._val_dataset = PklotDataSet(
-            root_path=val_data_dir, annotation_path=val_coco, transforms=ResnetFasterRCNN.get_transform()
+            root_path=val_data_dir, annotation_path=val_coco, transforms=transforms
         )
 
          # own DataLoader
