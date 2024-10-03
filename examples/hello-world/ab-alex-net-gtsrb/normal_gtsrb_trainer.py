@@ -72,17 +72,17 @@ class GTSRB:
 
         if use_original_imagenet_model:
             # Load the original pretrained AlexNet model (Trained on ImageNet dataset)
-            alexnet = models.alexnet(pretrained=True)
+            ssdnet = models.ssdnet(pretrained=True)
             # We only need the features, not the classifier
-            alexnet_original_features = alexnet.features
+            ssdnet_original_features = ssdnet.features
 
             
-            # self.model.load_state_dict(alexnet_original_features.state_dict()) # I tried to use load_state_dict but it did not work. I had to manually set the features of the model to the features of the original AlexNet model.
-            self.model.features = alexnet_original_features # AB: I set the features of the model to the features of the original AlexNet model to load the weights of the original AlexNet model. I immediately noticed the difference. In the first epoch, instead of having validation accuracy of 5%, after using the features of the original AlexNet model, I got 82% validation accuracy. This is a huge improvement. On the second epoch, I got 97.30% validation accuracy. This is a huge improvement. I will continue to use this model for the training.
+            # self.model.load_state_dict(ssdnet_original_features.state_dict()) # I tried to use load_state_dict but it did not work. I had to manually set the features of the model to the features of the original AlexNet model.
+            self.model.features = ssdnet_original_features # AB: I set the features of the model to the features of the original AlexNet model to load the weights of the original AlexNet model. I immediately noticed the difference. In the first epoch, instead of having validation accuracy of 5%, after using the features of the original AlexNet model, I got 82% validation accuracy. This is a huge improvement. On the second epoch, I got 97.30% validation accuracy. This is a huge improvement. I will continue to use this model for the training.
 
             # Check the model architecture. After manually checking the model architecture, I found that it is similar to the model that I used in the AlexNet class (alex_net_network.py).
             print("Loaded the original AlexNet model that was trained on ImageNet dataset.")
-            print(alexnet_original_features)
+            print(ssdnet_original_features)
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(self.device)
@@ -95,7 +95,7 @@ class GTSRB:
             self.load_model_from_disk(model_path)
 
         # Create GTSRB dataset for training.
-        preprocess = transforms.Compose([ # AB: I added the transforms to the dataset to resize the images to 256x256, crop them to 224x224, convert them to tensors, and normalize them. This is the same as the original AlexNet model. I took it from this link: https://pytorch.org/hub/pytorch_vision_alexnet/
+        preprocess = transforms.Compose([ # AB: I added the transforms to the dataset to resize the images to 256x256, crop them to 224x224, convert them to tensors, and normalize them. This is the same as the original AlexNet model. I took it from this link: https://pytorch.org/hub/pytorch_vision_ssdnet/
                         transforms.Resize(256), # Resize the image to 256x256
                         transforms.CenterCrop(224), # Crop the image to 224x224 around the center
                         transforms.ToTensor(),

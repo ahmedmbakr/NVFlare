@@ -18,7 +18,7 @@ from typing import List, Union
 import torch.cuda
 from pt_constants import PTConstants
 from Resnet import ResnetFasterRCNN
-from Alexnet import AlexNetFasterRCNN
+from SSDnet import SSDVGG16
 
 from nvflare.apis.dxo import DXO
 from nvflare.apis.fl_context import FLContext
@@ -33,8 +33,8 @@ class PTModelLocator(ModelLocator):
         num_classes = 3
         if model_name == "resnet":
             self.model = ResnetFasterRCNN(num_classes)
-        elif model_name == "alexnet":
-            self.model = AlexNetFasterRCNN(num_classes)
+        elif model_name == "ssdnet":
+            self.model = SSDVGG16(num_classes)
 
     def get_model_names(self, fl_ctx: FLContext) -> List[str]:
         return [PTConstants.PTServerName]

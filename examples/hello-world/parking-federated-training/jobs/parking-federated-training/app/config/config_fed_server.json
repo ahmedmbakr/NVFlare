@@ -11,7 +11,7 @@
       "id": "persistor",
       "name": "PTFileModelPersistor",
       "args": {
-        "source_ckpt_file_full_name": "/home/bakr/NVFlare/examples/hello-world/parking-federated-training/utils/alexnet_pretrained_model.pth"
+        "source_ckpt_file_full_name": "/home/bakr/NVFlare/examples/hello-world/parking-federated-training/utils/ssdnet_pretrained_model.pth"
       }
     },
     {

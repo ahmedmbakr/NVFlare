@@ -4,9 +4,9 @@ from torchvision.models.detection import SSD300_VGG16_Weights
 from torchvision.models.detection.ssd import SSDClassificationHead
 import torch.nn as nn
 
-class AlexNetFasterRCNN(torch.nn.Module):
+class SSDVGG16(torch.nn.Module):
     def __init__(self, num_classes=3):  # Adjust based on the number of your classes
-        super(AlexNetFasterRCNN, self).__init__()
+        super(SSDVGG16, self).__init__()
         self.num_classes = num_classes
         self.model = self.get_pretrained_model(num_classes)
 
@@ -38,6 +38,6 @@ class AlexNetFasterRCNN(torch.nn.Module):
         return SSD300_VGG16_Weights.DEFAULT.transforms()
 
 if __name__ == "__main__":
-    model = AlexNetFasterRCNN.get_pretrained_model(3)
+    model = SSDVGG16.get_pretrained_model(3)
     print(model)
-    # print(AlexNetFasterRCNN.get_transform())
+    # print(SSDVGG16.get_transform())

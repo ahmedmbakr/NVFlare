@@ -65,7 +65,7 @@ if __name__ == "__main__":
     POLL_STATUS_INTERVAL_SEC = 2
     NUM_CLIENTS = 4
     TRACKERS_FILE_PATH = POC_WORKSPACE + "/site-{0}/{1}/app_site-{0}/outputs/overall_trackers.pkl" # AB: Param0: site number, Param1: job_id
-    MODEL_NAME = "alexnet"
+    MODEL_NAME = "ssdnet"
 
     import time
     # print("Waiting for 20 seconds to give the server time to start")

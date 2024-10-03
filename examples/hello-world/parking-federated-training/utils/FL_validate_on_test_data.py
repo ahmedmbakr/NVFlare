@@ -7,7 +7,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.abspath(os.path.join(dir_path, '../jobs/parking-federated-training/app/custom')))
 print(sys.path)
 import Resnet
-import Alexnet
+import SSDnet
 import parkingFL_Tester
 import PkLotDataLoader
 
@@ -15,8 +15,8 @@ def validate_on_test_data(poc_workspace: str, models_full_paths_list: list, mode
     validation_results = np.zeros((num_clients + 1, num_clients))
     if model_name == "resnet":
         model = Resnet.ResnetFasterRCNN.get_pretrained_model(num_classes)
-    elif model_name == "alexnet":
-        model = Alexnet.AlexNetFasterRCNN.get_pretrained_model(num_classes)
+    elif model_name == "ssdnet":
+        model = SSDnet.SSDVGG16.get_pretrained_model(num_classes)
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     checkpoint = torch.load(models_full_paths_list[-1])
@@ -38,8 +38,8 @@ def validate_on_test_data(poc_workspace: str, models_full_paths_list: list, mode
             if model_name == "resnet":
                 resnetNetwork = Resnet.ResnetFasterRCNN(num_classes)
                 transforms = resnetNetwork.get_transform()
-            elif model_name == "alexnet":
-                alexNetNetwork = Alexnet.AlexNetFasterRCNN(num_classes)
+            elif model_name == "ssdnet":
+                alexNetNetwork = SSDnet.SSDVGG16(num_classes)
                 transforms = alexNetNetwork.get_transform()
 
             test_dataset = PkLotDataLoader.PklotDataSet(
@@ -82,5 +82,5 @@ if __name__ == "__main__":
     valid_detection_threshold = 0.5
     batch_size = 6
     num_workers = 4
-    model_name = "alexnet"
+    model_name = "ssdnet"
     _ = validate_on_test_data(POC_WORKSPACE, models_full_paths_list, models_names, num_clients, test_coco_full_path_pattern, outputs_dir, valid_detection_threshold, batch_size, num_workers, model_name)

@@ -31,7 +31,7 @@ def get_transforms(model_name, pretrained=True): # TODO: AB: Consider for now th
     if model_name == "resnet":
         from torchvision.models.detection import FasterRCNN_ResNet50_FPN_Weights
         weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT
-    elif model_name == "alexnet":
+    elif model_name == "ssdnet":
         from torchvision.models.detection import FasterRCNN_AlexNet_Weights
         weights = FasterRCNN_AlexNet_Weights.DEFAULT
     transforms = weights.transforms()
@@ -43,7 +43,7 @@ if __name__ == "__main__":
     image_path = '/home/bakr/CNR-EXT_FULL_IMAGE_1000x750/FULL_IMAGE_1000x750/SUNNY/2015-11-12/camera1/2015-11-12_0909.jpg'
     model_path = "/home/bakr/NVFlare/examples/hello-world/parking-federated-training/models/model_3.pth"
     score_threshold = .2
-    model_name = "alexnet" # The model name can be either "resnet" or "alexnet"
+    model_name = "ssdnet" # The model name can be either "resnet" or "ssdnet"
 
     # Load the model
     trainer = normal_trainer.ParkingTrainer(config=config, inference=True)

@@ -19,7 +19,7 @@ import os.path
 import torch
 from pt_constants import PTConstants
 from Resnet import ResnetFasterRCNN
-from Alexnet import AlexNetFasterRCNN
+from SSDnet import SSDVGG16
 from PkLotDataLoader import PklotDataSet, collate_fn
 from torch import nn
 from torch.optim import SGD
@@ -109,8 +109,8 @@ class ParkingFL_Trainer(ModelLearner):
         # Training setup
         if self.model_name == "resnet":
             self.model = ResnetFasterRCNN.get_pretrained_model(self.num_classes)
-        elif self.model_name == "alexnet":
-            self.model = AlexNetFasterRCNN.get_pretrained_model(self.num_classes)
+        elif self.model_name == "ssdnet":
+            self.model = SSDVGG16.get_pretrained_model(self.num_classes)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.loss = nn.CrossEntropyLoss()
@@ -125,8 +125,8 @@ class ParkingFL_Trainer(ModelLearner):
         if self.model_name == "resnet":
             resnetNetwork = ResnetFasterRCNN(self.num_classes)
             transforms = resnetNetwork.get_transform()
-        elif self.model_name == "alexnet":
-            alexNetNetwork = AlexNetFasterRCNN(self.num_classes)
+        elif self.model_name == "ssdnet":
+            alexNetNetwork = SSDVGG16(self.num_classes)
             transforms = alexNetNetwork.get_transform()
 
         self._train_dataset = PklotDataSet(

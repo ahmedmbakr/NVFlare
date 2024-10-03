@@ -11,6 +11,7 @@ from PIL import Image
 from pycocotools.coco import COCO
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from PkLotDataLoader import PklotDataSet, collate_fn
+from torchvision.models.detection import SSD300_VGG16_Weights
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 mAP_path = os.path.abspath(os.path.join(dir_path, 'jobs/parking-federated-training/app/custom'))
@@ -84,7 +85,7 @@ class ParkingTrainer:
             if self.model_name == 'resnet':
                 from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
                 weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT
-            elif self.model_name == 'alexnet':
+            elif self.model_name == 'ssdnet':
                 from torchvision.models import AlexNet_Weights
                 weights = AlexNet_Weights.DEFAULT
             tranforms = weights.transforms()
@@ -101,8 +102,8 @@ class ParkingTrainer:
         if not pretrained:
             if self.model_name == 'resnet':
                 model = torchvision.models.detection.fasterrcnn_resnet50_fpn()
-            elif self.model_name == 'alexnet':
-                model = torchvision.models.alexnet()
+            elif self.model_name == 'ssdnet':
+                model = torchvision.models.detection.ssd300_vgg16()
         else:
             # Try this method and check the difference TODO: AB: Check the difference between the two methods
             if self.model_name == 'resnet':
@@ -113,10 +114,10 @@ class ParkingTrainer:
                 in_features = model.roi_heads.box_predictor.cls_score.in_features
                 # replace the pre-trained head with a new one
                 model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-            elif self.model_name == 'alexnet':
+            elif self.model_name == 'ssdnet':
                 from torchvision.models import AlexNet_Weights
                 weights = AlexNet_Weights.DEFAULT
-                model = torchvision.models.alexnet(weights=weights, progress=False)
+                model = torchvision.models.detection.ssd300_vgg16(weights=SSD300_VGG16_Weights.DEFAULT)
                 in_features = model.classifier[6].in_features
                 # replace the pre-trained head with a new one
                 model.classifier[6] = torch.nn.Linear(in_features, num_classes)
@@ -311,7 +312,7 @@ class ParkingTrainer:
 
 if __name__ == "__main__":
     PKLOT_CNR_TRAINING_SELECTOR = 'CNR'
-    MODEL_NAME='resnet' # The model name can be either 'resnet' or 'alexnet'
+    MODEL_NAME='resnet' # The model name can be either 'resnet' or 'ssdnet'
     if PKLOT_CNR_TRAINING_SELECTOR == 'PKLOT':
         import pklot_trainer_config as config
     elif PKLOT_CNR_TRAINING_SELECTOR == 'PUCPR':
