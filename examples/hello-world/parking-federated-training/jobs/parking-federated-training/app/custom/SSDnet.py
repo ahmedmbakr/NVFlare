@@ -30,6 +30,9 @@ class SSDVGG16(torch.nn.Module):
         )
 
         return model
+    
+    def forward(self, x):
+        return self.model(x)
 
     # Optionally: Define the transformation pipeline based on the pre-trained weights
     @staticmethod

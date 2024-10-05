@@ -11,7 +11,7 @@ test_data_dir = "/home/bakr/pklot/test"
 test_coco = "/home/bakr/pklot/test/_annotations.coco.json"
 
 # Batch size
-train_batch_size = 12
+train_batch_size = 1
 pre_trained_model_allowed = True
 
 # Params for dataloader

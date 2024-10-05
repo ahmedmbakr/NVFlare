@@ -19,6 +19,7 @@ import torch.cuda
 from pt_constants import PTConstants
 from Resnet import ResnetFasterRCNN
 from SSDnet import SSDVGG16
+from Yolov5net import YOLOv5
 
 from nvflare.apis.dxo import DXO
 from nvflare.apis.fl_context import FLContext
@@ -35,6 +36,8 @@ class PTModelLocator(ModelLocator):
             self.model = ResnetFasterRCNN(num_classes)
         elif model_name == "ssdnet":
             self.model = SSDVGG16(num_classes)
+        elif model_name == "yolov5":
+            self.model = YOLOv5(num_classes)
 
     def get_model_names(self, fl_ctx: FLContext) -> List[str]:
         return [PTConstants.PTServerName]

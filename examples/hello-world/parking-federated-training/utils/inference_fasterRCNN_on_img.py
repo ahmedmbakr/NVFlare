@@ -11,6 +11,11 @@ import torchvision.transforms.functional as F
 import sys, os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.abspath(os.path.join(dir_path, '..')))
+sys.path.append(os.path.abspath(os.path.join(dir_path, '../jobs/parking-federated-training/app/custom')))
+print(sys.path)
+import Resnet
+import SSDnet
+import Yolov5net
 import normal_trainer
 import pklot_trainer_config as config
 
@@ -31,10 +36,14 @@ def get_transforms(model_name, pretrained=True): # TODO: AB: Consider for now th
     if model_name == "resnet":
         from torchvision.models.detection import FasterRCNN_ResNet50_FPN_Weights
         weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT
+        transforms = weights.transforms()
     elif model_name == "ssdnet":
         from torchvision.models.detection import FasterRCNN_AlexNet_Weights
         weights = FasterRCNN_AlexNet_Weights.DEFAULT
-    transforms = weights.transforms()
+        transforms = weights.transforms()
+    elif model_name == "yolov5":
+        transforms = Yolov5net.YOLOv5.get_transform()
+    
     return transforms
 
 if __name__ == "__main__":
@@ -43,7 +52,7 @@ if __name__ == "__main__":
     image_path = '/home/bakr/CNR-EXT_FULL_IMAGE_1000x750/FULL_IMAGE_1000x750/SUNNY/2015-11-12/camera1/2015-11-12_0909.jpg'
     model_path = "/home/bakr/NVFlare/examples/hello-world/parking-federated-training/models/model_3.pth"
     score_threshold = .2
-    model_name = "ssdnet" # The model name can be either "resnet" or "ssdnet"
+    model_name = "yolov5" # The model name can be either "resnet" or "ssdnet" or "yolov5"
 
     # Load the model
     trainer = normal_trainer.ParkingTrainer(config=config, inference=True)

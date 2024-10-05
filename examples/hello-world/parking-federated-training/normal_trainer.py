@@ -18,6 +18,10 @@ mAP_path = os.path.abspath(os.path.join(dir_path, 'jobs/parking-federated-traini
 print("mAP path: ", mAP_path)
 sys.path.append(mAP_path)
 import mAP
+import SSDnet
+import Yolov5net
+
+from yolov5.utils.general import non_max_suppression # pip install yolov5
 
 class_id_to_name_dict = {1: "Space-empty", 2: "Space-occupied"}
 
@@ -33,11 +37,11 @@ class ParkingTrainer:
         os.makedirs(self.outputs_dir)
         # create own Dataset
         train_pklot_dataset = PklotDataSet(
-            root_path=self.config.train_data_dir, annotation_path=self.config.train_coco, transforms=self.get_transform()
+            root_path=self.config.train_data_dir, annotation_path=self.config.train_coco, model_name=model_name, transforms=self.get_transform()
         )
 
         val_pklot_dataset = PklotDataSet(
-            root_path=self.config.val_data_dir, annotation_path=self.config.val_coco, transforms=self.get_transform()
+            root_path=self.config.val_data_dir, annotation_path=self.config.val_coco, model_name=model_name, transforms=self.get_transform()
         )
 
          # own DataLoader
@@ -85,10 +89,11 @@ class ParkingTrainer:
             if self.model_name == 'resnet':
                 from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
                 weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT
+                tranforms = weights.transforms()
             elif self.model_name == 'ssdnet':
-                from torchvision.models import AlexNet_Weights
-                weights = AlexNet_Weights.DEFAULT
-            tranforms = weights.transforms()
+                tranforms = SSDnet.SSDVGG16.get_transform()
+            elif self.model_name == 'yolov5':
+                tranforms = Yolov5net.YOLOv5.get_transform()
             return tranforms
         else:
             custom_transforms = [] # TODO: AB: If you are going to use a trained model, make sure that the normalization is the same as the one used during training
@@ -104,6 +109,8 @@ class ParkingTrainer:
                 model = torchvision.models.detection.fasterrcnn_resnet50_fpn()
             elif self.model_name == 'ssdnet':
                 model = torchvision.models.detection.ssd300_vgg16()
+            elif self.model_name == 'yolov5':
+                model = Yolov5net.YOLOv5(num_classes=num_classes, pretrained=False)
         else:
             # Try this method and check the difference TODO: AB: Check the difference between the two methods
             if self.model_name == 'resnet':
@@ -115,12 +122,9 @@ class ParkingTrainer:
                 # replace the pre-trained head with a new one
                 model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
             elif self.model_name == 'ssdnet':
-                from torchvision.models import AlexNet_Weights
-                weights = AlexNet_Weights.DEFAULT
-                model = torchvision.models.detection.ssd300_vgg16(weights=SSD300_VGG16_Weights.DEFAULT)
-                in_features = model.classifier[6].in_features
-                # replace the pre-trained head with a new one
-                model.classifier[6] = torch.nn.Linear(in_features, num_classes)
+                model = SSDnet.SSDVGG16(num_classes=num_classes).model # TODO: AB: Add pretrained parameter
+            elif self.model_name == 'yolov5':
+                model = Yolov5net.YOLOv5(num_classes=num_classes, pretrained=True).model
 
         return model
     
@@ -153,6 +157,8 @@ class ParkingTrainer:
         print("Done Saving all the images with boxes in the directory: ", debug_images_directory)
     
     def local_train(self, visualize_images_with_boxes=False):
+        if self.model_name == 'yolov5':
+            self.yolo_loss = Yolov5net.YoloLoss()
         len_dataloader = len(self.train_data_loader)
         # Training
         trackers = {"train_loss": [], "val_acc": []}
@@ -166,12 +172,21 @@ class ParkingTrainer:
             for imgs, annotations in self.train_data_loader:
                 if visualize_images_with_boxes: # AB: Used only for debugging
                     self.__visualize_images_with_boxes_func(imgs, annotations)
-                imgs = list(img.to(self.device) for img in imgs)
+                # imgs = list(img.to(self.device) for img in imgs)
+                imgs = torch.stack(imgs).to(self.device)
                 annotations = [{k: v.to(self.device) for k, v in t.items()} for t in annotations]
                 if len(annotations) == 0:
                     continue
-                loss_dict = self.model(imgs, annotations)
-                losses = sum(loss for loss in loss_dict.values())
+                
+                # If loss_dict is a list or tuple:
+                if self.model_name == 'yolov5':
+                    predictions = self.model(imgs)
+                    # Compute the loss using predictions and annotations
+                    losses = self.yolo_loss(predictions, annotations)
+                else:
+                    loss_dict = self.model(imgs, annotations)
+                    # If it’s a dictionary (in case the structure varies), you can use the original approach
+                    losses = sum(loss for loss in loss_dict.values())
 
                 self.optimizer.zero_grad()
                 losses.backward()
@@ -229,9 +244,13 @@ class ParkingTrainer:
         len_val_loader = len(val_loader)
         with torch.no_grad():  # No need to track gradients
             for batch_id, (imgs, annotations) in enumerate(val_loader):
-                imgs = list(img.to(device) for img in imgs)
+                # imgs = list(img.to(device) for img in imgs)
+                imgs = torch.stack(imgs).to(self.device).contiguous()
+                print("imgs shape: ", imgs.shape)
                 annotations = [{k: v.to(device) for k, v in t.items()} for t in annotations]
                 predictions = self.model(imgs)  # Get model predictions
+                if self.model_name == 'yolov5':
+                    predictions = self.transform_yolov5_predictions(predictions)
                 
                 for i, prediction in enumerate(predictions):
                     # Post-process the predictions to remove low scoring parts
@@ -243,6 +262,8 @@ class ParkingTrainer:
                     keep = pred_scores > detection_threshold
                     pred_boxes = pred_boxes[keep].cpu().numpy().tolist()
                     pred_labels = pred_labels[keep].cpu().numpy().tolist()
+                    # Convert labels to integer values
+                    pred_labels = [int(label) for label in pred_labels]
                     pred_scores = pred_scores[keep].cpu().numpy().tolist()
 
                     # Ground truth
@@ -254,6 +275,8 @@ class ParkingTrainer:
                     prediction_file_path = os.path.join(self.config.mAP_val_prediction_directory, file_name)
                     with open(prediction_file_path, 'w') as f:
                         for box, label_id, score in zip(pred_boxes, pred_labels, pred_scores):
+                            if label_id == 0:
+                                continue
                             label_name = class_id_to_name_dict[label_id]
                             f.write(f'{label_name} {score} {box[0]} {box[1]} {box[2]} {box[3]}\n')
 
@@ -285,6 +308,26 @@ class ParkingTrainer:
         print("Validation complete.")
         return metric
     
+    def transform_yolov5_predictions(self, predictions):
+        ret_list_predictions = []
+        # Run non-max suppression on the predictions
+        nms_predictions = non_max_suppression(predictions)
+
+        # Iterate over predictions to extract boxes, scores, and labels
+        for pred in nms_predictions:
+            if pred is not None:
+                # boxes are in the format [x1, y1, x2, y2]
+                boxes = pred[:, :4]  # Bounding boxes
+                scores = pred[:, 4]  # Confidence scores
+                labels = pred[:, 5]  # Class labels
+
+                # Now boxes, scores, and labels are ready to be used
+                # print("Boxes:", boxes)
+                # print("Scores:", scores)
+                print("Labels:", labels)
+                ret_list_predictions.append({"boxes": boxes, "scores": scores, "labels": labels})
+        return ret_list_predictions
+    
     def test_model(self, test_coco_paths_list, test_names, detection_threshold=0.5):
         """
         In this function, we will test the model using all the given test coco files.
@@ -311,8 +354,8 @@ class ParkingTrainer:
 
 
 if __name__ == "__main__":
-    PKLOT_CNR_TRAINING_SELECTOR = 'CNR'
-    MODEL_NAME='resnet' # The model name can be either 'resnet' or 'ssdnet'
+    PKLOT_CNR_TRAINING_SELECTOR = 'PKLOT'
+    MODEL_NAME='yolov5' # The model name can be either 'resnet', 'ssdnet' or 'yolov5'
     if PKLOT_CNR_TRAINING_SELECTOR == 'PKLOT':
         import pklot_trainer_config as config
     elif PKLOT_CNR_TRAINING_SELECTOR == 'PUCPR':

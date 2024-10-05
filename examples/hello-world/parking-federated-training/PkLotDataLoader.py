@@ -5,11 +5,12 @@ from PIL import Image
 from pycocotools.coco import COCO
 
 class PklotDataSet(torch.utils.data.Dataset):
-    def __init__(self, root_path, annotation_path, transforms=None):
+    def __init__(self, root_path, annotation_path, model_name, transforms=None):
         self.root_path = root_path
         self.transforms = transforms
         self.coco = COCO(annotation_path)
         self.ids = list(sorted(self.coco.imgs.keys()))
+        self.model_name = model_name
 
     def __getitem__(self, index):
         # Own coco file
@@ -26,17 +27,35 @@ class PklotDataSet(torch.utils.data.Dataset):
         img = Image.open(os.path.join(self.root_path, path))
         # number of objects in the image
         num_objs = len(coco_annotation)
+        image_width = img.width
+        image_height = img.height
 
         # Bounding boxes for objects
         # In coco format, bbox = [xmin, ymin, width, height]
         # In pytorch, the input should be [xmin, ymin, xmax, ymax]
         boxes = []
         for i in range(num_objs):
+            box_width = coco_annotation[i]["bbox"][2]
+            box_height = coco_annotation[i]["bbox"][3]
             xmin = coco_annotation[i]["bbox"][0]
             ymin = coco_annotation[i]["bbox"][1]
-            xmax = xmin + coco_annotation[i]["bbox"][2]
-            ymax = ymin + coco_annotation[i]["bbox"][3]
-            boxes.append([xmin, ymin, xmax, ymax])
+            xmax = xmin + box_width
+            ymax = ymin + box_height
+            if self.model_name == "yolov5":
+                # Convert to YOLO format: [x_center, y_center, width, height]
+                x_center = xmin + box_width / 2
+                y_center = ymin + box_height / 2
+                
+                # Normalize by image width and height
+                x_center /= image_width
+                y_center /= image_height
+                box_width /= image_width
+                box_height /= image_height
+                
+                # Append the normalized box in YOLO format
+                boxes.append([x_center, y_center, box_width, box_height])
+            else:
+                boxes.append([xmin, ymin, xmax, ymax])
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         if boxes.shape[0] == 0:
             boxes = torch.zeros((0, 4)) # AB: Workaround for the issue of no bounding boxes

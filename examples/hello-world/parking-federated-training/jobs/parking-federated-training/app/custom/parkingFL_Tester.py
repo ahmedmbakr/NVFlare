@@ -15,6 +15,7 @@
 import torch
 from Resnet import ResnetFasterRCNN
 from SSDnet import SSDVGG16
+from Yolov5net import YOLOv5
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 from torchvision.transforms import Compose, Normalize, ToTensor, Resize
@@ -56,6 +57,9 @@ class ParkingFL_Tester(Executor):
         elif model_name == "ssdnet":
             alexNetNetwork = SSDVGG16(num_classes)
             self.model = alexNetNetwork.get_model()
+        elif model_name == "yolov5":
+            yolov5Network = YOLOv5(num_classes)
+            self.model = yolov5Network.get_model()
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.model.to(self.device)
 
@@ -63,6 +67,8 @@ class ParkingFL_Tester(Executor):
             transforms = resnetNetwork.get_transform()
         elif model_name == "ssdnet":
             transforms = alexNetNetwork.get_transform()
+        elif model_name == "yolov5":
+            transforms = yolov5Network.get_transform()
         test_dataset = PklotDataSet(
             root_path=test_data_dir, annotation_path=test_coco, transforms=transforms
         )

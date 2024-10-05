@@ -8,6 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(dir_path, '../jobs/parking-federate
 print(sys.path)
 import Resnet
 import SSDnet
+import Yolov5net
 import parkingFL_Tester
 import PkLotDataLoader
 
@@ -17,6 +18,8 @@ def validate_on_test_data(poc_workspace: str, models_full_paths_list: list, mode
         model = Resnet.ResnetFasterRCNN.get_pretrained_model(num_classes)
     elif model_name == "ssdnet":
         model = SSDnet.SSDVGG16.get_pretrained_model(num_classes)
+    elif model_name == "yolov5":
+        model = Yolov5net.YOLOv5.get_pretrained_model(num_classes)
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     checkpoint = torch.load(models_full_paths_list[-1])
@@ -41,6 +44,9 @@ def validate_on_test_data(poc_workspace: str, models_full_paths_list: list, mode
             elif model_name == "ssdnet":
                 alexNetNetwork = SSDnet.SSDVGG16(num_classes)
                 transforms = alexNetNetwork.get_transform()
+            elif model_name == "yolov5":
+                yolov5Network = Yolov5net.YOLOv5(num_classes)
+                transforms = yolov5Network.get_transform()
 
             test_dataset = PkLotDataLoader.PklotDataSet(
             root_path=test_data_dir, annotation_path=test_coco_full_path, transforms=transforms
@@ -82,5 +88,5 @@ if __name__ == "__main__":
     valid_detection_threshold = 0.5
     batch_size = 6
     num_workers = 4
-    model_name = "ssdnet"
+    model_name = "yolov5"
     _ = validate_on_test_data(POC_WORKSPACE, models_full_paths_list, models_names, num_clients, test_coco_full_path_pattern, outputs_dir, valid_detection_threshold, batch_size, num_workers, model_name)
