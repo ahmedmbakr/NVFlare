@@ -13,6 +13,170 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
+def visualize_final_round_precision_recall(data_dict, structure_dict, output_dir):
+    # Determine the total number of rows based on the combinations of network_name and method
+    total_rows = sum(len(methods) for methods in structure_dict.values())
+    num_clients = 4  # Assuming 4 clients
+
+    # Create a figure and subplots
+    fig, axs = plt.subplots(total_rows, num_clients, figsize=(12.1, 9))
+
+    # Flatten axs for ease of indexing if total_rows == 1
+    if total_rows == 1:
+        axs = [axs]
+
+    # Initialize row index
+    row = 0
+    for network_name, methods in structure_dict.items():
+        for method in methods:
+            for col, client_name in enumerate(['site-1', 'site-2', 'site-3', 'site-4']):
+                # Initialize variables for final precision and recall values
+                final_precision_1_epoch = {}
+                final_recall_1_epoch = {}
+                final_precision_2_epoch = {}
+                final_recall_2_epoch = {}
+
+                # Gather data for each setting
+                for local_epochs_key_str in data_dict[network_name][method]:
+                    val_acc = data_dict[network_name][method][local_epochs_key_str][client_name].get('val_acc', [])
+                    
+                    if local_epochs_key_str == '1-local-epoch':
+                        # Round 99 for 1-local-epoch
+                        idx = 99 if len(val_acc) > 99 else -1
+                        metrics_per_class = val_acc[idx]
+                        final_precision_1_epoch = metrics_per_class.get('precision', {})
+                        final_recall_1_epoch = metrics_per_class.get('recall', {})
+                    elif local_epochs_key_str == '2-local-epochs':
+                        # Round 49 for 2-local-epochs
+                        idx = 49 if len(val_acc) > 49 else -1
+                        metrics_per_class = val_acc[idx]
+                        final_precision_2_epoch = metrics_per_class.get('precision', {})
+                        final_recall_2_epoch = metrics_per_class.get('recall', {})
+
+                # Plot the precision-recall curve for 'Space-empty' and 'Space-occupied' classes
+                for class_name, color in zip(['Space-empty', 'Space-occupied'], ['r', 'g']):
+                    if final_recall_1_epoch and final_precision_1_epoch:
+                        recall_1_epoch = final_recall_1_epoch.get(class_name, 0)
+                        precision_1_epoch = final_precision_1_epoch.get(class_name, 0)
+                        txt_class_name = 'Empty-1-local-epoch' if class_name == 'Space-empty' else 'Occupied-1-local-epoch'
+                        axs[row][col].plot(recall_1_epoch, precision_1_epoch, f'{color}-', label=f'{txt_class_name}')
+
+                    if final_recall_2_epoch and final_precision_2_epoch:
+                        recall_2_epoch = final_recall_2_epoch.get(class_name, 0)
+                        precision_2_epoch = final_precision_2_epoch.get(class_name, 0)
+                        txt_class_name = 'Empty-2-local-epochs' if class_name == 'Space-empty' else 'Occupied-2-local-epochs'
+                        axs[row][col].plot(recall_2_epoch, precision_2_epoch, f'{color}--', label=f'{txt_class_name}')
+
+                # Labeling
+                # axs[row][col].set_xlabel('Recall', fontsize=9)
+                # axs[row][col].set_ylabel('Precision', fontsize=9)
+                axs[row][col].set_xlim([-0.1, 1.05])
+                axs[row][col].set_ylim([-0.1, 1.1])
+                
+                if row == 0:
+                    axs[row][col].set_title(f'Client {col + 1}', fontsize=9)
+                if col == 0:
+                    axs[row][col].set_ylabel(f"{method} Precision\nfor {network_name}", fontsize=9)
+                if row == total_rows - 1:
+                    axs[row][col].set_xlabel('Recall', fontsize=9)
+                # Enable grid and set legend
+                axs[row][col].grid(True, linestyle='--', linewidth=0.5)
+                axs[row][col].legend(loc='lower left', fontsize=9)
+                
+                # Set tick label size
+                axs[row][col].tick_params(axis='both', labelsize=9)
+            
+            # Move to the next row for each method
+            row += 1
+
+    plt.tight_layout()
+
+    # Save the plot to a PDF file
+    pr_curve_img_path = os.path.join(output_dir, 'final_round_precision_recall_curve.pdf')
+    fig.savefig(pr_curve_img_path, bbox_inches='tight')
+    print(f"Final round precision-recall curve plot saved to {pr_curve_img_path}")
+    plt.show()
+
+
+def visualize_log_average_miss_rate(data_dict, structure_dict, output_dir):
+    # Set font size to 9 for all plot elements
+    # Determine the total number of rows based on the combinations of network_name and method
+    total_rows = sum(len(methods) for methods in structure_dict.values())
+    num_clients = 4  # Assuming 4 clients
+
+    # Create a figure and subplots
+    fig, axs = plt.subplots(total_rows, num_clients, figsize=(12.1, 9))
+
+    # Flatten axs for ease of indexing if total_rows == 1
+    if total_rows == 1:
+        axs = [axs]
+
+    # Initialize row index
+    row = 0
+    for network_name, methods in structure_dict.items():
+        for method in methods:
+            for col, client_name in enumerate(['site-1', 'site-2', 'site-3', 'site-4']):
+                # Initialize lists to hold log-average miss rate values for each class and local epoch setting
+                rounds_1_epoch, log_miss_empty_1_epoch, log_miss_occupied_1_epoch = [], [], []
+                rounds_2_epoch, log_miss_empty_2_epoch, log_miss_occupied_2_epoch = [], [], []
+
+                # Gather data for each setting
+                for local_epochs_key_str in data_dict[network_name][method]:
+                    val_acc = data_dict[network_name][method][local_epochs_key_str][client_name].get('val_acc', [])
+                    
+                    for round_num, epoch_data in enumerate(val_acc):
+                        miss_rate_per_class = epoch_data.get('log_avg_miss_rate', {})
+                        log_miss_empty = miss_rate_per_class.get('Space-empty', 1)  # Default to log(1e-8) if not found
+                        log_miss_occupied = miss_rate_per_class.get('Space-occupied', 1)
+
+                        # Separate data based on the number of local epochs
+                        if local_epochs_key_str == '1-local-epoch':
+                            rounds_1_epoch.append(round_num)
+                            log_miss_empty_1_epoch.append(log_miss_empty)
+                            log_miss_occupied_1_epoch.append(log_miss_occupied)
+                        elif local_epochs_key_str == '2-local-epochs':
+                            rounds_2_epoch.append(round_num)
+                            log_miss_empty_2_epoch.append(log_miss_empty)
+                            log_miss_occupied_2_epoch.append(log_miss_occupied)
+
+                # Plot log-average miss rate for the 'Space-empty' class
+                if rounds_1_epoch:
+                    axs[row][col].plot(rounds_1_epoch, log_miss_empty_1_epoch, 'r-', label='Empty-1-local-epoch')  # Solid red line
+                if rounds_2_epoch:
+                    axs[row][col].plot(rounds_2_epoch, log_miss_empty_2_epoch, 'r--', label='Empty-2-local-epochs')  # Dashed red line
+
+                # Plot log-average miss rate for the 'Space-occupied' class
+                if rounds_1_epoch:
+                    axs[row][col].plot(rounds_1_epoch, log_miss_occupied_1_epoch, 'g-', label='Occupied-1-local-epoch')  # Solid green line
+                if rounds_2_epoch:
+                    axs[row][col].plot(rounds_2_epoch, log_miss_occupied_2_epoch, 'g--', label='Occupied-2-local-epochs')  # Dashed green line
+
+                # Labeling
+                if row == 0:
+                    axs[row][col].set_title(f'Client {col + 1}', fontsize=9)
+                if col == 0:
+                    axs[row][col].set_ylabel(f"{method} Log\n Average Miss Rate\nfor {network_name}", fontsize=9)
+                if row == total_rows - 1:
+                    axs[row][col].set_xlabel('Round', fontsize=9)
+                
+                # Set y-axis label and limits
+                axs[row][col].set_ylim([-0.1, 1])  # Adjust the limit based on the log range
+                
+                # Enable grid and set legend
+                axs[row][col].grid(True, linestyle='--', linewidth=0.5)
+                axs[row][col].legend(loc='upper right') # Uppoer right corner
+            
+            # Move to the next row for each method
+            row += 1
+
+    plt.tight_layout()
+
+    # Save the plot to a PDF file
+    miss_rate_img_path = os.path.join(output_dir, 'log_average_miss_rate_per_round.pdf')
+    fig.savefig(miss_rate_img_path, bbox_inches='tight')
+    print(f"Log Average Miss Rate per round plot saved to {miss_rate_img_path}")
+    plt.show()
+
 def visualize_method_per_row(structure_dict):
     dir_path = os.path.dirname(os.path.realpath(__file__))
     output_dir = os.path.join(dir_path, 'outputs')
@@ -32,13 +196,16 @@ def visualize_method_per_row(structure_dict):
                     with open(one_epoch_pkl_path, "rb") as f:
                         data_dict[network_name][method][local_epochs_key_str][client_name] = pickle.load(f)
     print("Finished reading the pickle files.")
+
+    visualize_final_round_precision_recall(data_dict, structure_dict, output_dir)
+    visualize_log_average_miss_rate(data_dict, structure_dict, output_dir)
     method = 'FedAvg'
     client_name = 'site-1'
     # Visualize_method_per_row the losses
     #Create a figure and 4x3 subplots
     fig, axs = plt.subplots(4, 4)
     # Set the size of the figure to the width of a letter size paper
-    fig.set_size_inches(12.1, 8.5)
+    fig.set_size_inches(12.1, 9)
 
     y_limits_per_row = []
     for k, network_name in enumerate(structure_dict):
@@ -68,7 +235,7 @@ def visualize_method_per_row(structure_dict):
                     # Remove the y-axis numbers from all subplots except the first one
                     axs[i, j].yaxis.set_tick_params(labelleft=False)
 
-                if i == len(network_structure_dict) - 1:
+                if i == 3:
                     axs[i, j].set(xlabel="Epoch")
             
                 # Set y-axis limits
@@ -78,7 +245,7 @@ def visualize_method_per_row(structure_dict):
                 if j == 3: # assuming that we have only 4 clients
                     axs[i, j].legend()
 
-                axs[i, j].grid()
+                axs[i, j].grid(True, linestyle='--', linewidth=0.5)
             i += 1
 
     # fig, axs = plt.subplots(4, 3)
@@ -129,7 +296,7 @@ def visualize_method_per_row(structure_dict):
                     # Remove the y-axis numbers from all subplots except the first one
                     axs[i, j].yaxis.set_tick_params(labelleft=False)
 
-                if i == len(network_structure_dict) - 1:
+                if i == 3:
                     axs[i, j].set(xlabel="Round")
             
                 # Set y-axis limits
@@ -139,7 +306,7 @@ def visualize_method_per_row(structure_dict):
                 if j == 3: # assuming that we have only 4 clients
                     axs[i, j].legend(loc='lower right')
 
-                axs[i, j].grid()
+                axs[i, j].grid(True, linestyle='--', linewidth=0.5)
 
             i += 1
 
@@ -213,7 +380,7 @@ def visualize_clients_per_row(structure_dict):
             # Set y-axis limits
             axs[i, j].set_ylim([0, y_limits_per_row[i]]) 
 
-            axs[i, j].grid()
+            axs[i, j].grid(True, linestyle='--', linewidth=0.5)
     # Create a single legend for all subplots and change the font size
     fig.legend(handles, labels, loc='upper left', fontsize='9')
     plt.show()
@@ -256,7 +423,7 @@ def visualize_clients_per_row(structure_dict):
             # Set y-axis limits
             axs[i, j].set_ylim([0.25, 1.1]) 
 
-            axs[i, j].grid()
+            axs[i, j].grid(True, linestyle='--', linewidth=0.5)
     # Create a single legend for all subplots and change the font size
     fig.legend(handles, labels, loc='upper left', fontsize='9')
     plt.show()
@@ -287,7 +454,7 @@ structure_dict = {
     'Sddnet': {
         'SCAFFOLD': {
         '1-local-epoch': 'expr-15',
-        '2-local-epochs': 'expr-15' # TODO: AB: Unitl I finish experiment 16, I use experiment 15 for both 1 and 2 local epochs
+        # '2-local-epochs': 'expr-15' # TODO: AB: Unitl I finish experiment 16, I use experiment 15 for both 1 and 2 local epochs
         }
     }
 }
