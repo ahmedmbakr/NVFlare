@@ -13,6 +13,144 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
+def calculate_f1_score_iou_50(data_dict, structure_dict):
+    # Loop through each network, method, and client to calculate mean F1 score for IoU 50%
+    for network_name in structure_dict:
+        network_structure_dict = structure_dict[network_name]
+        for method in network_structure_dict:
+            for client_name in ['site-1', 'site-2', 'site-3', 'site-4']:
+                f1_scores = []
+                for local_epochs_key_str in data_dict[network_name][method]:
+                    # Determine final round based on local epoch strategy
+                    final_round_index = -1 if '1-local-epoch' in local_epochs_key_str else -1 // 2
+                    
+                    # Fetch the metrics for the final round
+                    val_acc = data_dict[network_name][method][local_epochs_key_str][client_name]['val_acc']
+                    if val_acc:
+                        last_epoch_data = val_acc[final_round_index]
+                        precision_per_class = last_epoch_data.get('precision', {})
+                        recall_per_class = last_epoch_data.get('recall', {})
+                        
+                        # Calculate F1 score for each class at IoU 50%
+                        for class_name in precision_per_class:
+                            precisions = np.array(precision_per_class.get(class_name, []))
+                            recalls = np.array(recall_per_class.get(class_name, []))
+                            
+                            # Assuming IoU 50% is at the first index (index 0)
+                            if len(precisions) > 0 and len(recalls) > 0:
+                                precision_iou_50 = precisions[0]
+                                recall_iou_50 = recalls[0]
+                                
+                                # Calculate F1 score for IoU 50%
+                                if (precision_iou_50 + recall_iou_50) > 0:
+                                    f1_score = 2 * (precision_iou_50 * recall_iou_50) / (precision_iou_50 + recall_iou_50)
+                                else:
+                                    f1_score = 0
+                                
+                                f1_scores.append(f1_score)
+                                print(f"F1 Score for {network_name} - {method} - {client_name} - {class_name} (IoU 50%): {f1_score:.4f}")
+                
+                # Calculate mean F1 score for this method and client across all classes
+                if f1_scores:
+                    mean_f1_score = np.mean(f1_scores)
+                    print(f"Mean F1 Score for {network_name} - {method} - {client_name} (IoU 50%): {mean_f1_score:.4f}\n")
+                else:
+                    print(f"No F1 Score data for {network_name} - {method} - {client_name}")
+
+
+def visualize_final_round_f1_score(data_dict, structure_dict, output_dir):
+    # Determine the total number of rows based on the combinations of network_name and method
+    total_rows = sum(len(methods) for methods in structure_dict.values())
+    num_clients = 4  # Number of clients
+
+    # Create a figure and subplots
+    fig, axs = plt.subplots(total_rows, num_clients, figsize=(12.1, 8.5))
+
+    # Flatten axs for ease of indexing if total_rows == 1
+    if total_rows == 1:
+        axs = [axs]
+
+    # Extract class names from data_dict
+    class_names = None
+    for network_name in data_dict:
+        for method in data_dict[network_name]:
+            for local_epochs_key_str in data_dict[network_name][method]:
+                for client_name in data_dict[network_name][method][local_epochs_key_str]:
+                    val_acc = data_dict[network_name][method][local_epochs_key_str][client_name]['val_acc']
+                    if val_acc:
+                        last_epoch_data = val_acc[-1]
+                        precision_per_class = last_epoch_data.get('precision', {})
+                        class_names = list(precision_per_class.keys())
+                        break
+                if class_names:
+                    break
+            if class_names:
+                break
+        if class_names:
+            break
+    if not class_names:
+        print("No class names found in data.")
+        return
+
+    # Initialize row index
+    i = 0
+    for network_name in structure_dict:
+        network_structure_dict = structure_dict[network_name]
+        for method in network_structure_dict:
+            for j, client_name in enumerate(['site-1', 'site-2', 'site-3', 'site-4']):
+                f1_scores = {class_name: {} for class_name in class_names}
+                
+                for local_epochs_key_str in data_dict[network_name][method]:
+                    # Determine final round based on local epoch strategy
+                    final_round_index = -1
+                    
+                    # Fetch the metrics for the final round
+                    val_acc = data_dict[network_name][method][local_epochs_key_str][client_name]['val_acc']
+                    if val_acc:
+                        last_epoch_data = val_acc[final_round_index]
+                        precision_per_class = last_epoch_data.get('precision', {})
+                        recall_per_class = last_epoch_data.get('recall', {})
+                        
+                        # Calculate F1 score for each class
+                        for class_name in class_names:
+                            precision = precision_per_class.get(class_name, 0)
+                            recall = recall_per_class.get(class_name, 0)
+                            f1_score = [  2 * (precision_elem * recall_elem) / (precision_elem + recall_elem) if  (precision_elem + recall_elem) > 0 else 0.0 for precision_elem, recall_elem in zip(precision, recall)]
+                            f1_scores[class_name][local_epochs_key_str] = f1_score
+                
+                # Plotting
+                for class_name, color in zip(class_names, ['r', 'g']):
+                    for local_epochs_key_str in data_dict[network_name][method]:
+                        # if local_epochs_key_str not in f1_scores[class_name]:
+                        #     continue
+                        x_values = range(len(f1_scores[class_name][local_epochs_key_str]))
+                        line_style = '-' if '1-local-epoch' in local_epochs_key_str else '--'
+                        class_name_txt = 'Empty' if class_name == 'Space-empty' else 'Occupied'
+                        axs[i][j].plot(x_values, f1_scores[class_name][local_epochs_key_str], f"{color}{line_style}", label=f"{class_name_txt}-{local_epochs_key_str}")
+                    
+                axs[i][j].set_ylim([0, 1])
+                if i == 0:
+                    axs[i][j].set(title=f'Client {j+1}')
+                if j == 0:
+                    axs[i][j].set(ylabel=f"{method}\nfor {network_name}")
+                else:
+                    axs[i][j].yaxis.set_tick_params(labelleft=False)
+                if i == total_rows - 1:
+                    axs[i][j].set(xlabel='Round')
+                axs[i][j].grid(True)
+                
+                # Show legend in the last column
+                if j == num_clients - 1:
+                    axs[i][j].legend(fontsize=9)
+            i += 1
+
+    plt.tight_layout()
+    # Save the plot to a PDF file
+    f1_img_path = os.path.join(output_dir, 'f1_score_per_class_final_round.pdf')
+    fig.savefig(f1_img_path, bbox_inches='tight')
+    print(f"F1 Score per class plot saved to {f1_img_path}")
+    plt.show()
+
 def visualize_final_round_precision_recall(data_dict, structure_dict, output_dir):
     # Determine the total number of rows based on the combinations of network_name and method
     total_rows = sum(len(methods) for methods in structure_dict.values())
@@ -196,7 +334,8 @@ def visualize_method_per_row(structure_dict):
                     with open(one_epoch_pkl_path, "rb") as f:
                         data_dict[network_name][method][local_epochs_key_str][client_name] = pickle.load(f)
     print("Finished reading the pickle files.")
-
+    # calculate_f1_score_iou_50(data_dict, structure_dict)
+    # visualize_final_round_f1_score(data_dict, structure_dict, output_dir)
     visualize_final_round_precision_recall(data_dict, structure_dict, output_dir)
     visualize_log_average_miss_rate(data_dict, structure_dict, output_dir)
     method = 'FedAvg'
