@@ -642,7 +642,7 @@ def visualize_local_clients_predictions(predictions_dict):
 
 EXPERIMENTS_ROOT_DIR = "/home/bakr/NVFlare/examples/hello-world/parking-federated-training/exprs"
 structure_dict = {
-    'Resnet50': {
+    'ResNet50': {
         'FedAvg': {
             '1-local-epoch': 'expr-10',
             '2-local-epochs': 'expr-09'
@@ -656,7 +656,7 @@ structure_dict = {
             '2-local-epochs': 'expr-14'
         }
     },
-    'Sddnet': {
+    'SsdNet16': {
         'SCAFFOLD': {
         '1-local-epoch': 'expr-15',
         # '2-local-epochs': 'expr-15' # TODO: AB: Unitl I finish experiment 16, I use experiment 15 for both 1 and 2 local epochs
@@ -664,7 +664,7 @@ structure_dict = {
     }
 }
 
-# visualize_method_per_row(structure_dict)
+visualize_method_per_row(structure_dict)
 
 predictions_dict = {
     'images_base_dir': '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images',
@@ -691,5 +691,5 @@ predictions_dict = {
     },
     'column-names': ['Client 1 Test Image (PUCPR)', 'Client 2 Test Image (UFPR04)', 'Client 3 Test Image (UFPR05)', 'Client 4 Test Image (CNR-EXT)']
 }
-# visualize_local_clients_predictions(predictions_dict) # TODO: Implement this function
-visualize_clients_per_row(structure_dict)
+visualize_local_clients_predictions(predictions_dict) # TODO: Implement this function
+# visualize_clients_per_row(structure_dict)
