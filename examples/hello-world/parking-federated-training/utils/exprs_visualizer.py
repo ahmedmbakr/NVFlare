@@ -571,6 +571,72 @@ def visualize_clients_per_row(structure_dict):
     mAP_img_path = os.path.join(output_dir, 'fl_mAP.pdf')
     fig.savefig(mAP_img_path, bbox_inches='tight')
     print(f"mAP plot saved to {mAP_img_path}")
+
+import os
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import matplotlib.patches as patches
+
+def visualize_local_clients_predictions(predictions_dict):
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    output_dir = os.path.join(dir_path, 'outputs')
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    # Extract images base directory and sites from predictions_dict
+    sites = predictions_dict.get('sites', {})
+
+    # Define number of rows and columns
+    num_rows = len(sites)  # 5 rows for each site including 'federated'
+    num_cols = len(next(iter(sites.values())))  # 4 columns for each test image
+
+    # Create a figure with a 5x4 grid of subplots with smaller spacing
+    fig, axs = plt.subplots(num_rows, num_cols, figsize=(12, 10))
+
+    column_names = predictions_dict.get('column-names', [])
+
+    # Iterate over each site and corresponding images
+    for i, (site_name, image_paths) in enumerate(sites.items()):
+        for j, (image_path, column_name) in enumerate(zip(image_paths, column_names)):
+            # Load the image
+            img = mpimg.imread(image_path)
+
+            # Display the image on the subplot
+            axs[i, j].imshow(img)
+            axs[i, j].spines['top'].set_visible(False)
+            axs[i, j].spines['right'].set_visible(False)
+            axs[i, j].spines['bottom'].set_visible(False)
+            axs[i, j].spines['left'].set_visible(False)
+            axs[i, j].tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
+            axs[i, j].set_aspect('auto')  # Ensure all subplots are the same aspect ratio
+
+            # Set the title for the first row only
+            if i == 0:
+                axs[i, j].set_title(f'{column_name}', fontsize=12)
+
+            # Set the y-axis label for the first column only with site names
+            if j == 0:
+                axs[i, j].set_ylabel(site_name, fontsize=12, rotation=90, labelpad=15, ha='center', va='center')
+                axs[i, j].tick_params(left=False, bottom=False, labelbottom=False)  # Turn off ticks
+
+            # Highlight diagonal images with a rectangle
+            if i == j or i == 4:
+                rect = patches.Rectangle((0, 0), 1, 1, linewidth=3, edgecolor='blue', facecolor='none',
+                                         transform=axs[i, j].transAxes, clip_on=False)
+                axs[i, j].add_patch(rect)
+
+    # Add a main title
+    # plt.suptitle('Predictions of Test Images for Each Client', fontsize=16)
+    
+    # Adjust spacing
+    plt.subplots_adjust(wspace=0.02, hspace=0.02, top=0.93, bottom=0.05, left=0.08, right=0.98)
+
+    # Show the plot
+    plt.show()
+
+    # Save the plot to a PDF file
+    img_path = os.path.join(output_dir, 'visualize_image_predections.pdf')
+    fig.savefig(img_path, bbox_inches='tight')
+    print(f"mAP plot saved to {img_path}")
             
 
 
@@ -598,5 +664,32 @@ structure_dict = {
     }
 }
 
-visualize_method_per_row(structure_dict)
-# visualize_clients_per_row(structure_dict)
+# visualize_method_per_row(structure_dict)
+
+predictions_dict = {
+    'images_base_dir': '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images',
+    'sites': {
+        'Client 1 Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/PUCPR/PUCPR/60.jpg',
+                    '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/PUCPR/UFPR04/18.jpg',
+                      '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/PUCPR/UFPR05/2.jpg',
+                      '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/PUCPR/CNR-EXT/16.jpg'],
+        'Client 2 Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR04/PUCPR/60.jpg',
+                    '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR04/UFPR04/18.jpg',
+                      '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR04/UFPR05/2.jpg',
+                        '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR04/CNR-EXT/16.jpg'],
+        'Client 3 Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/PUCPR/60.jpg', '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/UFPR04/18.jpg',
+                    '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/UFPR05/2.jpg',
+                      '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/CNR-EXT/16.jpg'],
+        'Client 4 Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR-EXT/PUCPR/60.jpg',
+                    '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR-EXT/UFPR04/18.jpg',
+                      '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR-EXT/UFPR05/2.jpg',
+                        '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR-EXT/CNR-EXT/16.jpg'],
+        'Federated Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/PUCPR/PUCPR/60.jpg',
+                       '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR04/UFPR04/18.jpg',
+                         '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/UFPR05/2.jpg',
+                           '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR-EXT/CNR-EXT/16.jpg']
+    },
+    'column-names': ['Client 1 Test Image (PUCPR)', 'Client 2 Test Image (UFPR04)', 'Client 3 Test Image (UFPR05)', 'Client 4 Test Image (CNR-EXT)']
+}
+# visualize_local_clients_predictions(predictions_dict) # TODO: Implement this function
+visualize_clients_per_row(structure_dict)
