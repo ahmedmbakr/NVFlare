@@ -664,7 +664,7 @@ structure_dict = {
     }
 }
 
-visualize_method_per_row(structure_dict)
+# visualize_method_per_row(structure_dict)
 
 predictions_dict = {
     'images_base_dir': '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images',
@@ -680,14 +680,14 @@ predictions_dict = {
         'Client 3 Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/PUCPR/60.jpg', '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/UFPR04/18.jpg',
                     '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/UFPR05/2.jpg',
                       '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/CNR-EXT/16.jpg'],
-        'Client 4 Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR-EXT/PUCPR/60.jpg',
-                    '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR-EXT/UFPR04/18.jpg',
-                      '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR-EXT/UFPR05/2.jpg',
-                        '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR-EXT/CNR-EXT/16.jpg'],
+        'Client 4 Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR/PUCPR/60.jpg',
+                    '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR/UFPR04/18.jpg',
+                      '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR/UFPR05/2.jpg',
+                        '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR/CNR-EXT/16.jpg'],
         'Federated Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/PUCPR/PUCPR/60.jpg',
                        '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR04/UFPR04/18.jpg',
                          '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/UFPR05/2.jpg',
-                           '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR-EXT/CNR-EXT/16.jpg']
+                           '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR/CNR-EXT/16.jpg']
     },
     'column-names': ['Client 1 Test Image (PUCPR)', 'Client 2 Test Image (UFPR04)', 'Client 3 Test Image (UFPR05)', 'Client 4 Test Image (CNR-EXT)']
 }

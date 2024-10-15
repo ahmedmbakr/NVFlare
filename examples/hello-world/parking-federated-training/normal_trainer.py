@@ -205,7 +205,9 @@ class ParkingTrainer:
             td = timedelta(seconds=diff_sec)
             print(f"Epoch {epoch} took {td}. The remaining time is {td * num_remaining_epochs}")
     
-    def validate(self, val_loader, epoch, detection_threshold=0.5):
+    def validate(self, val_loader, epoch, visualize_output=False, detection_threshold=0.5):
+        import numpy as np
+        from PIL import Image, ImageDraw
         """
         This function is used to validate the model on the validation set.
         It calculates the mAP score for the model.
@@ -215,6 +217,31 @@ class ParkingTrainer:
         Outputs:
         - metric: Metrics after running mAP calculation. 1) AP per class, 2) precision per class, 3) recall per class, 4) log average miss rate per class, 5) mAP
         """
+        # Function to calculate Intersection over Union (IoU)
+        def calculate_iou(box1, box2):
+            # Extract coordinates
+            x1, y1, x2, y2 = box1
+            x3, y3, x4, y4 = box2
+            
+            # Calculate intersection
+            x_left = max(x1, x3)
+            y_top = max(y1, y3)
+            x_right = min(x2, x4)
+            y_bottom = min(y2, y4)
+            
+            if x_right < x_left or y_bottom < y_top:
+                return 0.0
+            
+            intersection_area = (x_right - x_left) * (y_bottom - y_top)
+            
+            # Calculate union
+            box1_area = (x2 - x1) * (y2 - y1)
+            box2_area = (x4 - x3) * (y4 - y3)
+            union_area = box1_area + box2_area - intersection_area
+            
+            # Calculate IoU
+            iou = intersection_area / union_area
+            return iou
         # Remove the files in the input directory needed by mAP calculation
         if os.path.exists(self.config.mAP_val_prediction_directory):
             os.system(f"rm -rf {self.config.mAP_val_prediction_directory}")
@@ -223,6 +250,11 @@ class ParkingTrainer:
         if os.path.exists(self.config.mAP_val_gt_directory):
             os.system(f"rm -rf {self.config.mAP_val_gt_directory}")
         os.makedirs(self.config.mAP_val_gt_directory)
+
+        images_output_dir = os.path.join(self.outputs_dir, 'debug_images', f'{epoch}')
+        if os.path.exists(images_output_dir):
+            os.system(f"rm -rf {images_output_dir}")
+        os.makedirs(images_output_dir)
 
         self.model.eval()  # Set the model to evaluation mode
         device = self.device
@@ -262,6 +294,97 @@ class ParkingTrainer:
                         for box, label_id in zip(gt_boxes, gt_labels):
                             label_name = class_id_to_name_dict[label_id]
                             f.write(f'{label_name} {box[0]} {box[1]} {box[2]} {box[3]}\n')
+                    
+                    # Visualize the images with the boxes
+                    if visualize_output:
+                        # Get the image tensor and convert to numpy array
+                        img = imgs[i].cpu().numpy()
+                        img = np.transpose(img, (1, 2, 0))
+                        # Unnormalize the image
+                        # mean = np.array([0.485, 0.456, 0.406])
+                        # std = np.array([0.229, 0.224, 0.225])
+                        # img = std * img + mean
+                        img = np.clip(img, 0, 1)
+                        img = (img * 255).astype(np.uint8)
+                        # Convert to PIL Image
+                        img = Image.fromarray(img)
+                        draw = ImageDraw.Draw(img)
+
+                        # # Draw predicted boxes in red
+                        # for box, label_id, score in zip(pred_boxes, pred_labels, pred_scores):
+                        #     xmin, ymin, xmax, ymax = box
+                        #     xmin = int(xmin)
+                        #     ymin = int(ymin)
+                        #     xmax = int(xmax)
+                        #     ymax = int(ymax)
+                        #     label_name = class_id_to_name_dict[label_id]
+                        #     label_name = 'P' if label_name == 'Space-occupied' else 'E'
+                        #     label_name = label_name[0] # Get the first letter of the label name
+                        #     draw.rectangle([(xmin, ymin), (xmax, ymax)], outline='red', width=2)
+                        #     # draw.text((xmin, ymin), f'{label_name}: {score:.2f}', fill='red')
+                        #     draw.text((xmin, ymin), f'{label_name}', fill='red')
+
+                        # # Draw ground truth boxes in green
+                        # for box, label_id in zip(gt_boxes, gt_labels):
+                        #     xmin, ymin, xmax, ymax = box
+                        #     xmin = int(xmin)
+                        #     ymin = int(ymin)
+                        #     xmax = int(xmax)
+                        #     ymax = int(ymax)
+                        #     label_name = class_id_to_name_dict[label_id]
+                        #     label_name = 'P' if label_name == 'Space-occupied' else 'E'
+                        #     draw.rectangle([(xmin, ymin), (xmax, ymax)], outline='green', width=3)
+                        #     draw.text((xmin, ymax), f'{label_name}', fill='green')
+                        
+                        # # List of blue boxes will be drawn if the prediction box has a corresponding ground truth box
+                        list_of_blue_boxes = []
+
+                        # If the intersection-over-union (IoU) is high, the boxes will be drawn in blue
+                        for box, label_id, score in zip(pred_boxes, pred_labels, pred_scores):
+                            xmin, ymin, xmax, ymax = box
+                            xmin = int(xmin)
+                            ymin = int(ymin)
+                            xmax = int(xmax)
+                            ymax = int(ymax)
+                            is_matched_with_gt = False
+                            for gt_box, gt_label_id in zip(gt_boxes, gt_labels):
+                                iou = calculate_iou(box, gt_box)
+                                if iou > 0.5 and gt_label_id == label_id:
+                                    is_matched_with_gt = True
+                                    draw.rectangle([(xmin, ymin), (xmax, ymax)], outline='blue', width=4)
+                                    label_name = class_id_to_name_dict[gt_label_id]
+                                    label_name = 'P' if label_name == 'Space-occupied' else 'E' 
+                                    draw.text((xmin, ymin), f'{label_name}', fill='blue')
+                                    list_of_blue_boxes.append(box)
+                                    break
+                            # if the prediction box does not have a corresponding ground truth box, draw it in red
+                            if not is_matched_with_gt:
+                                draw.rectangle([(xmin, ymin), (xmax, ymax)], outline='red', width=4)
+                                label_name = class_id_to_name_dict[gt_label_id]
+                                label_name = 'P' if label_name == 'Space-occupied' else 'E' 
+                                draw.text((xmin, ymin), f'{label_name}', fill='red')
+
+                        # If the ground truth does not have a coressponding  prediction box, in the list_of_blue_boxes, draw it in green
+                        for gt_box, gt_label_id in zip(gt_boxes, gt_labels):
+                            xmin, ymin, xmax, ymax = gt_box
+                            xmin = int(xmin)
+                            ymin = int(ymin)
+                            xmax = int(xmax)
+                            ymax = int(ymax)
+                            is_matched_with_pred = False
+                            for box in list_of_blue_boxes:
+                                iou = calculate_iou(box, gt_box)
+                                if iou > 0.5:
+                                    is_matched_with_pred = True
+                                    break
+                            if not is_matched_with_pred:
+                                draw.rectangle([(xmin, ymin), (xmax, ymax)], outline='green', width=4)
+                                label_name = class_id_to_name_dict[gt_label_id]
+                                label_name = 'P' if label_name == 'Space-occupied' else 'E' 
+                                draw.text((xmin, ymax), f'{label_name}', fill='green')
+
+                        # Save the image
+                        img.save(os.path.join(images_output_dir, f'{unique_image_id}.jpg'))
 
                     # Calculate and print some form of validation metric
                     # This is where you might calculate intersection-over-union (IoU) and derive your precision/recall metrics.
@@ -285,7 +408,7 @@ class ParkingTrainer:
         print("Validation complete.")
         return metric
     
-    def test_model(self, test_coco_paths_list, test_names, detection_threshold=0.5):
+    def test_model(self, test_coco_paths_list, test_names, detection_threshold=0.5, visualize_output=False, training_selector_name=None):
         """
         In this function, we will test the model using all the given test coco files.
         Inputs:
@@ -305,24 +428,44 @@ class ParkingTrainer:
                 num_workers=self.config.num_workers_dl,
                 collate_fn=collate_fn,
             )
-
-            metric = self.validate(test_data_loader, test_name, detection_threshold)
+            test_name = (training_selector_name + '/' + test_name) if training_selector_name is not None else test_name
+            metric = self.validate(test_data_loader, test_name, visualize_output, detection_threshold)
             print(f"Testing completed on dataset: {test_name}. mAP: {metric['mAP']}, AP: {metric['ap']}, log_avg_miss_rate: {metric['log_avg_miss_rate']}")
 
 
 if __name__ == "__main__":
-    PKLOT_CNR_TRAINING_SELECTOR = 'CNR'
-    MODEL_NAME='resnet' # The model name can be either 'resnet' or 'ssdnet'
-    if PKLOT_CNR_TRAINING_SELECTOR == 'PKLOT':
-        import pklot_trainer_config as config
-    elif PKLOT_CNR_TRAINING_SELECTOR == 'PUCPR':
-        import pklot_PUCPR_trainer_config as config
-    elif PKLOT_CNR_TRAINING_SELECTOR == 'UFPR04':
-        import pklot_UFPR04_trainer_config as config
-    elif PKLOT_CNR_TRAINING_SELECTOR == 'UFPR05':
-        import pklot_UFPR05_trainer_config as config
-    elif PKLOT_CNR_TRAINING_SELECTOR == 'CNR':
-        import cnr_trainer_config as config
-    trainer = ParkingTrainer(config, model_name=MODEL_NAME)
-    trainer.local_train()
-    trainer.test_model(config.test_coco_paths_list, config.test_names, config.mAP_detection_threshold)
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    copy_to_folder = os.path.join(dir_path, f"saved_debug_images")
+    copy_to_folder = os.path.abspath(copy_to_folder)
+    if os.path.exists(copy_to_folder):
+        os.system(f"rm -rf {copy_to_folder}")
+    os.makedirs(copy_to_folder)
+    # PKLOT_CNR_TRAINING_SELECTOR = 'CNR'
+    for PKLOT_CNR_TRAINING_SELECTOR, model_file_name in zip(['PKLOT', 'PUCPR', 'UFPR04', 'UFPR05', 'CNR'], ['pklot_model_29.pth', 'pucr_model_23.pth', 'ufpr04_model_6.pth', 'ufpr05_model_23.pth', 'cnr_model_13.pth']):
+        inference = True
+        MODEL_NAME='resnet' # The model name can be either 'resnet' or 'ssdnet'
+        if PKLOT_CNR_TRAINING_SELECTOR == 'PKLOT':
+            import pklot_trainer_config as config
+        elif PKLOT_CNR_TRAINING_SELECTOR == 'PUCPR':
+            import pklot_PUCPR_trainer_config as config
+        elif PKLOT_CNR_TRAINING_SELECTOR == 'UFPR04':
+            import pklot_UFPR04_trainer_config as config
+        elif PKLOT_CNR_TRAINING_SELECTOR == 'UFPR05':
+            import pklot_UFPR05_trainer_config as config
+        elif PKLOT_CNR_TRAINING_SELECTOR == 'CNR':
+            import cnr_trainer_config as config
+        trainer = ParkingTrainer(config, model_name=MODEL_NAME, inference=inference)
+        if not inference:
+            trainer.local_train()
+        else:
+            # Load the model from saved pretrained model
+            state_dict = torch.load(config.models_folder + f'/{model_file_name}')
+            trainer.model.load_state_dict(state_dict)
+            pass
+        trainer.test_model(config.test_coco_paths_list, config.test_names, config.mAP_detection_threshold, visualize_output=True, training_selector_name=PKLOT_CNR_TRAINING_SELECTOR)
+        
+        # Copy the folder `examples/hello-world/parking-federated-training/outputs/debug_images/{PKLOT_CNR_TRAINING_SELECTOR}` into `examples/hello-world/parking-federated-training/saved_debug_images\{PKLOT_CNR_TRAINING_SELECTOR}`
+        copy_from_folder = os.path.join(dir_path, f"outputs/debug_images/{PKLOT_CNR_TRAINING_SELECTOR}")
+        copy_from_folder = os.path.abspath(copy_from_folder)
+        print(f"Copying from: {copy_from_folder} to: {copy_to_folder}")
+        os.system(f"cp -r {copy_from_folder} {copy_to_folder}")

@@ -10,6 +10,9 @@ val_coco = "/home/bakr/pklot/valid/_annotations.coco.json"
 test_data_dir = "/home/bakr/pklot/test"
 test_coco = "/home/bakr/pklot/test/_annotations.coco.json"
 
+test_coco_paths_list = ["/home/bakr/pklot/PUCPR/test/_annotations.coco.json", "/home/bakr/pklot/UFPR04/test/_annotations.coco.json", "/home/bakr/pklot/UFPR05/test/_annotations.coco.json", "/home/bakr/CNR-EXT/test/_annotations.coco.json"]
+test_names = ["PUCPR", "UFPR04", "UFPR05", "CNR-EXT"]
+
 # Batch size
 train_batch_size = 12
 pre_trained_model_allowed = True
