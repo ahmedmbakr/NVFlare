@@ -208,6 +208,7 @@ class ParkingTrainer:
     def validate(self, val_loader, epoch, visualize_output=False, detection_threshold=0.5):
         import numpy as np
         from PIL import Image, ImageDraw
+        import time
         """
         This function is used to validate the model on the validation set.
         It calculates the mAP score for the model.
@@ -217,6 +218,9 @@ class ParkingTrainer:
         Outputs:
         - metric: Metrics after running mAP calculation. 1) AP per class, 2) precision per class, 3) recall per class, 4) log average miss rate per class, 5) mAP
         """
+        # Initialize inference time tracking
+        total_inference_time = 0.0
+        total_images_processed = 0
         # Function to calculate Intersection over Union (IoU)
         def calculate_iou(box1, box2):
             # Extract coordinates
@@ -263,7 +267,17 @@ class ParkingTrainer:
             for batch_id, (imgs, annotations) in enumerate(val_loader):
                 imgs = list(img.to(device) for img in imgs)
                 annotations = [{k: v.to(device) for k, v in t.items()} for t in annotations]
+                
+                # Measure inference time for this batch
+                batch_start_time = time.time()
                 predictions = self.model(imgs)  # Get model predictions
+                batch_end_time = time.time()
+                batch_inference_time = batch_end_time - batch_start_time
+                
+                # Calculate per-image inference time for this batch
+                per_image_time = batch_inference_time / len(imgs)
+                total_inference_time += batch_inference_time
+                total_images_processed += len(imgs)
                 
                 for i, prediction in enumerate(predictions):
                     # Post-process the predictions to remove low scoring parts
@@ -309,6 +323,19 @@ class ParkingTrainer:
                         # Convert to PIL Image
                         img = Image.fromarray(img)
                         draw = ImageDraw.Draw(img)
+
+                        # Add inference time text on the image
+                        inference_time_text = f"Inference time: {per_image_time*1000:.2f} ms"
+                        # Get image dimensions to position text
+                        img_width, img_height = img.size
+                        # Draw text background rectangle for better visibility
+                        text_bbox = draw.textbbox((0, 0), inference_time_text)
+                        text_width = text_bbox[2] - text_bbox[0]
+                        text_height = text_bbox[3] - text_bbox[1]
+                        # Position text at top-left corner
+                        text_x, text_y = 10, 10
+                        draw.rectangle([text_x-2, text_y-2, text_x+text_width+2, text_y+text_height+2], fill='black')
+                        draw.text((text_x, text_y), inference_time_text, fill='white')
 
                         # # Draw predicted boxes in red
                         # for box, label_id, score in zip(pred_boxes, pred_labels, pred_scores):
@@ -405,6 +432,14 @@ class ParkingTrainer:
         os.makedirs(mAP_val_output_dir)
         
         metric = mAP.calculate_mAP(mAP_val_input_dir, mAP_val_output_dir)
+        
+        # Calculate and print overall average inference time
+        if total_images_processed > 0:
+            overall_avg_inference_time = total_inference_time / total_images_processed
+            print(f"Overall average inference time per image: {overall_avg_inference_time*1000:.2f} ms")
+            print(f"Total images processed: {total_images_processed}")
+            print(f"Total inference time: {total_inference_time:.2f} seconds")
+        
         print("Validation complete.")
         return metric
     
@@ -431,6 +466,7 @@ class ParkingTrainer:
             test_name = (training_selector_name + '/' + test_name) if training_selector_name is not None else test_name
             metric = self.validate(test_data_loader, test_name, visualize_output, detection_threshold)
             print(f"Testing completed on dataset: {test_name}. mAP: {metric['mAP']}, AP: {metric['ap']}, log_avg_miss_rate: {metric['log_avg_miss_rate']}")
+            print("-" * 60)  # Add separator for clarity between different test sets
 
 
 if __name__ == "__main__":
