@@ -115,12 +115,14 @@ class ParkingTrainer:
                 # replace the pre-trained head with a new one
                 model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
             elif self.model_name == 'ssdnet':
-                from torchvision.models import AlexNet_Weights
-                weights = AlexNet_Weights.DEFAULT
-                model = torchvision.models.detection.ssd300_vgg16(weights=SSD300_VGG16_Weights.DEFAULT)
-                in_features = model.classifier[6].in_features
-                # replace the pre-trained head with a new one
-                model.classifier[6] = torch.nn.Linear(in_features, num_classes)
+                from torchvision.models.detection import ssd300_vgg16
+
+                # directly ask for the right number of classes
+                model = ssd300_vgg16(
+                    weights=None,
+                    weights_backbone=None,   
+                    num_classes=num_classes,  # this replaces the head with the right number of classes
+                )
 
         return model
     
