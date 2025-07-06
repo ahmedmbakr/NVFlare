@@ -15,6 +15,12 @@
       }
     },
     {
+      "id": "model",
+      "path": "Resnet.ResnetFasterRCNN",
+      "args": {
+      }
+    },
+    {
       "id": "model_selector",
       "name": "IntimeModelSelector",
       "args": {}
