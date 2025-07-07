@@ -73,7 +73,7 @@
         "id": "scatter_gather_ctl",
         "name": "ScatterAndGather",
         "args": {
-            "min_clients" : 1,
+            "min_clients" : 4,
             "num_rounds" : 100,
             "start_round": 0,
             "wait_time_after_min_received": 10,

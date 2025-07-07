@@ -20,13 +20,29 @@ def validate_on_test_data(poc_workspace: str, models_full_paths_list: list, mode
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     checkpoint = torch.load(models_full_paths_list[-1])
+    keys_to_remove = ["cls_score.weight", "cls_score.bias", "bbox_pred.weight", "bbox_pred.bias"]
+    for key in keys_to_remove:
+        if key in checkpoint['model']:
+            # AB: I added this code to solve an error.
+            del checkpoint['model'][key]
+    # model = checkpoint['model']
     model.load_state_dict(checkpoint ['model'])
     model.to(device)
 
     for idx, (model_owner, model_full_path) in enumerate(zip(models_names, models_full_paths_list)):
         # The saved file is a dictionary with the model and the best epoch number
         model_dict_key = "model" if model_owner == "server" else "model_weights"
+        
         checkpoint  = torch.load(model_full_path)
+        if model_owner == "server":
+            # Remove the following keywords from the checkpoint
+            # "cls_score.weight", "cls_score.bias", "bbox_pred.weight", "bbox_pred.bias".
+            keys_to_remove = ["cls_score.weight", "cls_score.bias", "bbox_pred.weight", "bbox_pred.bias"]
+            for key in keys_to_remove:
+                if key in checkpoint[model_dict_key]:
+                    # AB: I added this code to solve an error.
+                    del checkpoint[model_dict_key][key]
+
         model.load_state_dict(checkpoint [model_dict_key])
         model.to(device)
         for client_idx in range(num_clients): # We test the model on client_idx data
