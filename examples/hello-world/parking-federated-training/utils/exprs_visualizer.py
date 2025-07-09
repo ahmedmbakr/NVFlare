@@ -302,7 +302,12 @@ def visualize_log_average_miss_rate(data_dict, structure_dict, output_dir):
                 
                 # Enable grid and set legend
                 axs[row][col].grid(True, linestyle='--', linewidth=0.5)
-                axs[row][col].legend(loc='upper right') # Uppoer right corner
+                # Show legend only in the last column
+                if col == num_clients - 1:
+                    axs[row][col].legend(loc='upper right')
+                else:
+                    # Remove the legend for other columns
+                    axs[row][col].legend().set_visible(False)
             
             # Move to the next row for each method
             row += 1
@@ -342,7 +347,7 @@ def visualize_method_per_row(structure_dict):
     client_name = 'site-1'
     # Visualize_method_per_row the losses
     #Create a figure and 4x3 subplots
-    fig, axs = plt.subplots(4, 4)
+    fig, axs = plt.subplots(5, 4)
     # Set the size of the figure to the width of a letter size paper
     fig.set_size_inches(12.1, 9)
 
@@ -374,7 +379,7 @@ def visualize_method_per_row(structure_dict):
                     # Remove the y-axis numbers from all subplots except the first one
                     axs[i, j].yaxis.set_tick_params(labelleft=False)
 
-                if i == 3:
+                if i == 4:
                     axs[i, j].set(xlabel="Epoch")
             
                 # Set y-axis limits
@@ -400,7 +405,7 @@ def visualize_method_per_row(structure_dict):
     print(f"Losses plot saved to {losses_img_path}")
 
     # Draw mAP vs Rounds
-    fig, axs = plt.subplots(4, 4)
+    fig, axs = plt.subplots(5, 4)
     # Set the size of the figure to the width of a letter size paper
     fig.set_size_inches(12.1, 8.5)
 
@@ -651,6 +656,10 @@ structure_dict = {
             '1-local-epoch': 'expr-11',
             '2-local-epochs': 'expr-12'
         },
+        'FedOpt': {
+            '1-local-epoch': 'expr-16',
+            '2-local-epoch': 'expr-17'
+        },
         'SCAFFOLD': {
             '1-local-epoch': 'expr-13',
             '2-local-epochs': 'expr-14'
@@ -664,7 +673,7 @@ structure_dict = {
     }
 }
 
-# visualize_method_per_row(structure_dict)
+visualize_method_per_row(structure_dict)
 
 predictions_dict = {
     'images_base_dir': '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images',

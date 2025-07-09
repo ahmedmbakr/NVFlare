@@ -60,7 +60,7 @@
         "lr_scheduler_args": {
           "path": "torch.optim.lr_scheduler.CosineAnnealingLR",
           "args": {
-            "T_max": 100,
+            "T_max": 50,
             "eta_min": 0.9
           },
           "config_type": "dict"
@@ -74,7 +74,7 @@
         "name": "ScatterAndGather",
         "args": {
             "min_clients" : 4,
-            "num_rounds" : 100,
+            "num_rounds" : 50,
             "start_round": 0,
             "wait_time_after_min_received": 10,
             "aggregator_id": "aggregator",
