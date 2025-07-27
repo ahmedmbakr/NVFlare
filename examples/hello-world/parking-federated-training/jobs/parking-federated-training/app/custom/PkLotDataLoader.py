@@ -5,11 +5,13 @@ from PIL import Image
 from pycocotools.coco import COCO
 
 class PklotDataSet(torch.utils.data.Dataset):
-    def __init__(self, root_path, annotation_path, transforms=None):
+    def __init__(self, root_path, annotation_path, transforms=None, max_samples=None):
         self.root_path = root_path
         self.transforms = transforms
         self.coco = COCO(annotation_path)
         self.ids = list(sorted(self.coco.imgs.keys()))
+        if max_samples is not None and ("train" in root_path or "train" in annotation_path):
+            self.ids = self.ids[:max_samples] # Limit the number of training examples
 
     def __getitem__(self, index):
         # Own coco file
