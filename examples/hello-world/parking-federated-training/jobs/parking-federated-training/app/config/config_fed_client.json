@@ -29,12 +29,13 @@
           "data_path": "{datasetpath}",
           "lr": 0.001,
           "fedproxloss_mu": 0,
-          "epochs": 1,
+          "epochs": 25,
           "num_classes": "{num_classes}",
           "batch_size": "{batch_size}",
           "num_workers_dl": "{num_workers_dl}",
           "valid_detection_threshold": "{valid_detection_threshold}",
-          "model_name": "ssdnet"
+          "model_name": "ssdnet",
+          "split_between_clients": 5
         }
     }
   ]

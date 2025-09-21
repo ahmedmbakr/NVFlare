@@ -37,8 +37,8 @@
         "id": "scaffold_ctl",
         "name": "Scaffold",
         "args": {
-            "min_clients" : 4,
-            "num_rounds" : 100,
+            "min_clients" : 20,
+            "num_rounds" : 25,
             "persistor_id": "persistor"
         }
       },

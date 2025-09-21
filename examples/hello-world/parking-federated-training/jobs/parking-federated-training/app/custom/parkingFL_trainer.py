@@ -63,6 +63,7 @@ class ParkingFL_Trainer(ModelLearner):
         fedproxloss_mu: float = 0.0,
         shuffle_training_data_enable=True,
         num_workers_dl=4,
+        split_between_clients=None
     ):
         """Init function for the ParkingFL_Trainer class.
 
@@ -90,6 +91,7 @@ class ParkingFL_Trainer(ModelLearner):
         self.shuffle_training_data_enable = shuffle_training_data_enable
         self.num_workers_dl = num_workers_dl
         self.model_name = model_name
+        self.split_between_clients = split_between_clients
 
         self.scaffold_helper = PTScaffoldHelper()
 
@@ -130,7 +132,7 @@ class ParkingFL_Trainer(ModelLearner):
             transforms = alexNetNetwork.get_transform()
 
         self._train_dataset = PklotDataSet(
-            root_path=train_data_dir, annotation_path=train_coco, transforms=transforms
+            root_path=train_data_dir, annotation_path=train_coco, transforms=transforms, split_between_clients=self.split_between_clients # Limit the number of training samples # TODO: AB: Change this to the number of clients
         )
 
         self._val_dataset = PklotDataSet(

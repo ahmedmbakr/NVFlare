@@ -1,6 +1,6 @@
 # Make sure to run the save_pretrained_file scrpt before running this file. In addition, make sure that the output path of the pretrained model is the same as the path provided in the config_fed_server.json file.
-NUM_CLIENTS=4
-GPU_ASSIGN_PER_CLIENT="0 1 2 3"
+NUM_CLIENTS=20
+GPU_ASSIGN_PER_CLIENT="0 0 0 0 0 1 1 1 1 1 2 2 2 2 2 3 3 3 3 3"
 export NVFLARE_POC_WORKSPACE="/tmp/bakr-nvflare/poc" # Set the workspace for the NVFlare PoC. You cannot change this variable name as it is used by the NVFlare PoC scripts.
 PROJECT_WORKSPACE_NAME="example_project/prod_00"
 
@@ -15,9 +15,25 @@ cp -r parking-federated-training/jobs/parking-federated-training/ ${NVFLARE_POC_
 
 # Prepare the data for all clients. The fastest way is to create symbolic links instead of copying the data to each client's directory.
 ln -sf ~/pklot/PUCPR/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-1/data
-ln -sf ~/pklot/UFPR04/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-2/data
-ln -sf ~/pklot/UFPR05/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-3/data
-ln -sf ~/CNR-EXT/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-4/data
+ln -sf ~/pklot/PUCPR/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-2/data
+ln -sf ~/pklot/PUCPR/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-3/data
+ln -sf ~/pklot/PUCPR/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-4/data
+ln -sf ~/pklot/PUCPR/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-5/data
+ln -sf ~/pklot/UFPR04/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-6/data
+ln -sf ~/pklot/UFPR04/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-7/data
+ln -sf ~/pklot/UFPR04/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-8/data
+ln -sf ~/pklot/UFPR04/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-9/data
+ln -sf ~/pklot/UFPR04/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-10/data
+ln -sf ~/pklot/UFPR05/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-11/data
+ln -sf ~/pklot/UFPR05/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-12/data
+ln -sf ~/pklot/UFPR05/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-13/data
+ln -sf ~/pklot/UFPR05/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-14/data
+ln -sf ~/pklot/UFPR05/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-15/data
+ln -sf ~/CNR-EXT/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-16/data
+ln -sf ~/CNR-EXT/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-17/data
+ln -sf ~/CNR-EXT/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-18/data
+ln -sf ~/CNR-EXT/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-19/data
+ln -sf ~/CNR-EXT/ ${NVFLARE_POC_WORKSPACE}/${PROJECT_WORKSPACE_NAME}/site-20/data
 
 cd ~/NVFlare
 cd ~/NVFlare/examples/hello-world
