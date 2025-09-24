@@ -67,17 +67,34 @@ def validate_on_test_data(poc_workspace: str, models_full_paths_list: list, mode
         
 if __name__ == "__main__":
     POC_WORKSPACE = "/tmp/bakr-nvflare/poc/example_project/prod_00"
-    task_id = "ec9e8d6c-626c-4282-bc20-6206eb865a54"
+    task_id = "adeb9388-8584-4931-b567-893cf05714c1"
     models_full_paths_list = [
         f'{POC_WORKSPACE}/site-1/{task_id}/app_site-1/outputs/models/local_model.pt', # Client 1
         f'{POC_WORKSPACE}/site-2/{task_id}/app_site-2/outputs/models/local_model.pt', # Client 2
         f'{POC_WORKSPACE}/site-3/{task_id}/app_site-3/outputs/models/local_model.pt', # Client 3
         f'{POC_WORKSPACE}/site-4/{task_id}/app_site-4/outputs/models/local_model.pt', # Client 4
+        f'{POC_WORKSPACE}/site-5/{task_id}/app_site-5/outputs/models/local_model.pt',
+        f'{POC_WORKSPACE}/site-6/{task_id}/app_site-6/outputs/models/local_model.pt',
+        f'{POC_WORKSPACE}/site-7/{task_id}/app_site-7/outputs/models/local_model.pt',
+        f'{POC_WORKSPACE}/site-8/{task_id}/app_site-8/outputs/models/local_model.pt',
+        f'{POC_WORKSPACE}/site-9/{task_id}/app_site-9/outputs/models/local_model.pt',
+        f'{POC_WORKSPACE}/site-10/{task_id}/app_site-10/outputs/models/local_model.pt',
+        f'{POC_WORKSPACE}/site-11/{task_id}/app_site-11/outputs/models/local_model.pt',
+        f'{POC_WORKSPACE}/site-12/{task_id}/app_site-12/outputs/models/local_model.pt',
+        f'{POC_WORKSPACE}/site-13/{task_id}/app_site-13/outputs/models/local_model.pt',
+        f'{POC_WORKSPACE}/site-14/{task_id}/app_site-14/outputs/models/local_model.pt',
+        f'{POC_WORKSPACE}/site-15/{task_id}/app_site-15/outputs/models/local_model.pt',
+        f'{POC_WORKSPACE}/site-16/{task_id}/app_site-16/outputs/models/local_model.pt',
+        f'{POC_WORKSPACE}/site-17/{task_id}/app_site-17/outputs/models/local_model.pt',
+        f'{POC_WORKSPACE}/site-18/{task_id}/app_site-18/outputs/models/local_model.pt',
+        f'{POC_WORKSPACE}/site-19/{task_id}/app_site-19/outputs/models/local_model.pt',
+        f'{POC_WORKSPACE}/site-20/{task_id}/app_site-20/outputs/models/local_model.pt',
         f'{POC_WORKSPACE}/FL_global_model.pt' # Server
     ]
-    models_names = ['site-1', 'site-2', 'site-3', 'site-4', 'server']
+    models_names = ['site-1', 'site-2', 'site-3', 'site-4', 'site-5', 'site-6', 'site-7', 'site-8', 'site-9', 'site-10',
+                    'site-11', 'site-12', 'site-13', 'site-14', 'site-15', 'site-16', 'site-17', 'site-18', 'site-19', 'site-20', 'server']
     test_coco_full_path_pattern = POC_WORKSPACE + "/site-{}/data/test/_annotations.coco.json"
-    num_clients = 4
+    num_clients = 20
     outputs_dir = os.path.abspath(os.path.join(POC_WORKSPACE, 'test_data_outputs'))
     valid_detection_threshold = 0.5
     batch_size = 6
