@@ -3,11 +3,14 @@ import os
 import torch.utils.data
 from PIL import Image
 from pycocotools.coco import COCO
+import random
+import numpy as np
 
 class PklotDataSet(torch.utils.data.Dataset):
-    def __init__(self, root_path, annotation_path, transforms=None):
+    def __init__(self, root_path, annotation_path, transforms=None, albumentation_transformation=None):
         self.root_path = root_path
         self.transforms = transforms
+        self.albumentation_transformation = albumentation_transformation
         self.coco = COCO(annotation_path)
         self.ids = list(sorted(self.coco.imgs.keys()))
 
@@ -68,6 +71,13 @@ class PklotDataSet(torch.utils.data.Dataset):
         my_annotation["image_id"] = img_id
         my_annotation["area"] = areas
         my_annotation["iscrowd"] = iscrowd
+
+        if self.albumentation_transformation is not None and random.random() < 0.7: # Apply one of the transformations 70% of the times
+            # Randomly select one transformation from the dictionary
+            transform_name = random.choice(list(self.albumentation_transformation.keys()))
+            selected_transform = self.albumentation_transformation[transform_name]
+            augmented = selected_transform(image=np.array(img))
+            img = Image.fromarray(augmented["image"])
 
         if self.transforms is not None:
             img = self.transforms(img)

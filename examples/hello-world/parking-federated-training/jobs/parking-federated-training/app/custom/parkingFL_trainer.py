@@ -47,6 +47,9 @@ from nvflare.apis.fl_constant import FLMetaKey, ReturnCode
 from nvflare.app_opt.pt.scaffold import PTScaffoldHelper, get_lr_values
 from nvflare.app_common.app_constant import AlgorithmConstants
 
+import albumentations as A
+from albumentations import Compose
+
 class_id_to_name_dict = {1: "Space-empty", 2: "Space-occupied"}
 
 
@@ -90,8 +93,73 @@ class ParkingFL_Trainer(ModelLearner):
         self.shuffle_training_data_enable = shuffle_training_data_enable
         self.num_workers_dl = num_workers_dl
         self.model_name = model_name
+        self.albummentation_transformations = self.get_albumentation_transformations()
 
         self.scaffold_helper = PTScaffoldHelper()
+
+    def get_albumentation_transformations(self):
+        # Define individual adverse weather transformations
+        # Using simplified parameters that are compatible with the installed version
+
+        # 1. Rain Effect
+        rain_transform = A.Compose([
+            A.RandomRain(p=1.0)
+        ])
+
+        # 2. Snow Effect  
+        snow_transform = A.Compose([
+            A.RandomSnow(p=1.0)
+        ])
+
+        # 3. Fog Effect
+        fog_transform = A.Compose([
+            A.RandomFog(p=1.0)
+        ])
+
+        # 4. Sun Flare/Glare Effect
+        sun_flare_transform = A.Compose([
+            A.RandomSunFlare(
+                flare_roi=(0, 0, 1, 0.5),  # Top half of the image
+                src_color=(255, 255, 255),
+                p=1.0
+            )
+        ])
+
+        # 5. High Contrast Lighting (Without Shadow effect)
+        shadow_transform = A.Compose([
+            A.RandomBrightnessContrast(
+                brightness_limit=(-0.3, 0.3),  # Adjust brightness
+                contrast_limit=(0.3, 0.7),  # Increase contrast
+                p=1.0
+            )
+        ])
+
+        # 6. Night Effect (Darkening + Noise)
+        night_transform = A.Compose([
+            A.RandomBrightnessContrast(
+                brightness_limit=(-0.5, -0.3),  # Make it darker
+                contrast_limit=0.2,
+                p=1.0
+            ),
+            A.GaussNoise(p=0.5)
+        ])
+
+        # Dictionary of transformations
+        transformations = {
+            'Rain Effect': rain_transform,
+            'Snow Effect': snow_transform,
+            'Fog Effect': fog_transform,
+            'Sun Flare/Glare': sun_flare_transform,
+            'Contrast Lighting': shadow_transform,
+            'Night Effect': night_transform,
+            'Rain + Night Effect': A.Compose([
+                rain_transform,
+                night_transform
+            ])
+        }
+
+        return transformations
+
 
     def initialize(self):
         """
@@ -130,7 +198,7 @@ class ParkingFL_Trainer(ModelLearner):
             transforms = alexNetNetwork.get_transform()
 
         self._train_dataset = PklotDataSet(
-            root_path=train_data_dir, annotation_path=train_coco, transforms=transforms
+            root_path=train_data_dir, annotation_path=train_coco, transforms=transforms, albumentation_transformation=self.albummentation_transformations
         )
 
         self._val_dataset = PklotDataSet(
