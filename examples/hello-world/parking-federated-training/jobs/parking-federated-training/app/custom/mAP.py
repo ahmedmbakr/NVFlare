@@ -11,7 +11,7 @@ import math
 
 import numpy as np
 
-def calculate_mAP(inputs_dir, outputs_dir, ignore=None, set_class_iou=None, no_plot=False, quiet=False):
+def calculate_mAP(inputs_dir, outputs_dir, ignore=None, set_class_iou=None, no_plot=True, quiet=False):
     """
     Inputs:
         - inputs_dir: The directory containing the ground-truth and detection-results directories.
