@@ -30,16 +30,32 @@
       "id": "json_generator",
       "name": "ValidationJsonGenerator",
       "args": {}
+    },
+    {
+      "id": "robust_agg",
+      "path": "median_trimmed_mean_aggregator.MedianTrimmedMeanAggregator",
+      "args": {
+        "mode": "trimmed_mean",    
+        "trim_ratio": 0.1
+      }
+    },
+    {
+      "id": "shareable_generator",
+      "name": "FullModelShareableGenerator",
+      "args": {}
     }
   ],
   "workflows": [
       {
-        "id": "scaffold_ctl",
-        "name": "Scaffold",
+        "id": "scatter_and_gather",
+        "name": "ScatterAndGather",
         "args": {
             "min_clients" : 4,
             "num_rounds" : 100,
-            "persistor_id": "persistor"
+            "persistor_id": "persistor",
+            "aggregator_id": "robust_agg",
+            "shareable_generator_id": "shareable_generator",
+            "train_task_name": "train"
         }
       },
       {
