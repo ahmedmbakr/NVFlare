@@ -41,7 +41,7 @@ class MedianTrimmedMeanAggregator(Aggregator):
       - mode: 'median' or 'trimmed_mean' (with trim_ratio)
     """
 
-    def __init__(self, mode: str = "median", trim_ratio: float = 0.1):
+    def __init__(self, mode: str = "median", trim_ratio: float = 0.1, num_malicious_clients_simulated: int = 0):
         super().__init__()
         if mode not in ("median", "trimmed_mean"):
             raise ValueError("mode must be 'median' or 'trimmed_mean'")
@@ -50,6 +50,7 @@ class MedianTrimmedMeanAggregator(Aggregator):
         self.mode = mode
         self.trim_ratio = float(trim_ratio)
         self._buffer: List[Shareable] = []  # stash accepted client results each round
+        self._num_malicious_clients_simulated = num_malicious_clients_simulated
 
     # Called per client result. Return True to accept into this round’s aggregation buffer.
     # def accept(self, shareable: Shareable, fl_ctx) -> bool:
@@ -140,8 +141,16 @@ class MedianTrimmedMeanAggregator(Aggregator):
 
         # Extract WEIGHT_DIFF dicts
         client_diffs: List[Dict[str, Any]] = []
+        num_malicious_weights_applied = 0
         for sh in shareables:
             dxo = from_shareable(sh)
+            if self._num_malicious_clients_simulated > 0 and num_malicious_weights_applied < self._num_malicious_clients_simulated:
+                num_malicious_weights_applied += 1
+                # Simulate some malicious clients by uploading random weights
+                if dxo.data_kind == DataKind.WEIGHT_DIFF:
+                    if np.random.rand() < (self._num_malicious_clients_simulated / len(shareables)):
+                        dxo.data = {k: np.random.randn(*np.array(v).shape).astype(np.array(v).dtype) for k, v in dxo.data.items()}
+                        self.log_info(fl_ctx, "[robust_agg] Simulated a malicious client by uploading random WEIGHT_DIFF")
             if dxo.data_kind == DataKind.WEIGHT_DIFF:
                 client_diffs.append(dxo.data)
 

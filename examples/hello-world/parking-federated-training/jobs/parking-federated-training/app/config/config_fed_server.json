@@ -36,7 +36,8 @@
       "path": "median_trimmed_mean_aggregator.MedianTrimmedMeanAggregator",
       "args": {
         "mode": "trimmed_mean",    
-        "trim_ratio": 0.1
+        "trim_ratio": 0.1,
+        "num_malicious_clients_simulated": 0
       }
     },
     {
