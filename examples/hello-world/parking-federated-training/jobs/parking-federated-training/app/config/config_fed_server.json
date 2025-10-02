@@ -51,8 +51,8 @@
         "id": "scatter_and_gather",
         "name": "ScatterAndGather",
         "args": {
-            "min_clients" : 4,
-            "num_rounds" : 100,
+            "min_clients" : 20,
+            "num_rounds" : 50,
             "persistor_id": "persistor",
             "aggregator_id": "robust_agg",
             "shareable_generator_id": "shareable_generator",

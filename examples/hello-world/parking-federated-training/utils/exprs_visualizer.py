@@ -329,7 +329,7 @@ def visualize_method_per_row(structure_dict):
             data_dict[network_name][method] = {}
             for local_epochs_key_str in network_structure_dict[method].keys():
                 data_dict[network_name][method][local_epochs_key_str] = {}
-                for client_name in ['site-1', 'site-2', 'site-3', 'site-4']:
+                for client_name in ['site-1', 'site-2', 'site-3', 'site-4', 'site-5', 'site-6', 'site-7', 'site-8', 'site-9', 'site-10', 'site-11', 'site-12', 'site-13', 'site-14', 'site-15', 'site-16', 'site-17', 'site-18', 'site-19', 'site-20']:
                     one_epoch_pkl_path = os.path.join(EXPERIMENTS_ROOT_DIR, network_structure_dict[method][local_epochs_key_str], client_name, 'overall_trackers.pkl')
                     with open(one_epoch_pkl_path, "rb") as f:
                         data_dict[network_name][method][local_epochs_key_str][client_name] = pickle.load(f)
@@ -342,7 +342,7 @@ def visualize_method_per_row(structure_dict):
     client_name = 'site-1'
     # Visualize_method_per_row the losses
     #Create a figure and 4x3 subplots
-    fig, axs = plt.subplots(4, 4)
+    fig, axs = plt.subplots(5, 4)
     # Set the size of the figure to the width of a letter size paper
     fig.set_size_inches(12.1, 9)
 
@@ -350,7 +350,7 @@ def visualize_method_per_row(structure_dict):
     for k, network_name in enumerate(structure_dict):
         network_structure_dict = structure_dict[network_name]
         for i, method in enumerate(network_structure_dict):
-            for j, client_name in enumerate(['site-1', 'site-2', 'site-3', 'site-4']):
+            for j, client_name in enumerate(['site-1', 'site-2', 'site-3', 'site-4', 'site-5', 'site-6', 'site-7', 'site-8', 'site-9', 'site-10', 'site-11', 'site-12', 'site-13', 'site-14', 'site-15', 'site-16', 'site-17', 'site-18', 'site-19', 'site-20']):
                 max_loss = 0
                 for local_epochs_key_str in network_structure_dict[method].keys():
                     max_loss = max(max_loss, max(data_dict[network_name][method][local_epochs_key_str][client_name]['train_loss']))
@@ -361,20 +361,25 @@ def visualize_method_per_row(structure_dict):
     for network_name in structure_dict:
         network_structure_dict = structure_dict[network_name]
         for method in network_structure_dict:
-            for j, client_name in enumerate(['site-1', 'site-2', 'site-3', 'site-4']):
+            for k, client_name in enumerate(['site-1', 'site-2', 'site-3', 'site-4', 'site-5', 'site-6', 'site-7', 'site-8', 'site-9', 'site-10', 'site-11', 'site-12', 'site-13', 'site-14', 'site-15', 'site-16', 'site-17', 'site-18', 'site-19', 'site-20']):
+                i = k // 4
+                j = k % 4
                 for local_epochs_key_str in network_structure_dict[method].keys():
                     num_epochs = len(data_dict[network_name][method][local_epochs_key_str][client_name]['train_loss'])
                     epochs_arr = np.arange(num_epochs)
                     axs[i, j].plot(epochs_arr, data_dict[network_name][method][local_epochs_key_str][client_name]['train_loss'], label=f'{local_epochs_key_str}')
-                if i == 0:
-                    axs[i, j].set(title=f'Client {j+1}')
-                if j == 0:
-                    axs[i, j].set(ylabel=f"{method} Loss\nfor {network_name}")
-                else:
-                    # Remove the y-axis numbers from all subplots except the first one
-                    axs[i, j].yaxis.set_tick_params(labelleft=False)
+                axs[i, j].set(title=f'Client {k+1}')
+                # if j == 0:
+                #     axs[i, j].set(ylabel=f"{method} Loss\nfor {network_name}")
+                # else:
+                #     # Remove the y-axis numbers from all subplots except the first one
 
-                if i == 3:
+                labelleft = True if j == 0 else False
+                labelbottom = True if i == 4 else False
+
+                axs[i, j].tick_params(axis='both', labelleft=labelleft, labelbottom=labelbottom)
+
+                if i == 4:
                     axs[i, j].set(xlabel="Epoch")
             
                 # Set y-axis limits
@@ -396,6 +401,7 @@ def visualize_method_per_row(structure_dict):
 
     # Save the plot to a PDF file
     losses_img_path = os.path.join(output_dir, 'fl_losses.pdf')
+    # losses_img_path = os.path.join(output_dir, 'fl_losses.jpg')
     fig.savefig(losses_img_path, bbox_inches='tight')
     print(f"Losses plot saved to {losses_img_path}")
 
@@ -642,54 +648,40 @@ def visualize_local_clients_predictions(predictions_dict):
 
 EXPERIMENTS_ROOT_DIR = "/home/bakr/NVFlare/examples/hello-world/parking-federated-training/exprs"
 structure_dict = {
-    'ResNet50': {
-        'FedAvg': {
-            '1-local-epoch': 'expr-10',
-            '2-local-epochs': 'expr-09'
-        },
-        'FedProx': {
-            '1-local-epoch': 'expr-11',
-            '2-local-epochs': 'expr-12'
-        },
-        'SCAFFOLD': {
-            '1-local-epoch': 'expr-13',
-            '2-local-epochs': 'expr-14'
-        }
-    },
     'SsdNet16': {
         'SCAFFOLD': {
-        '1-local-epoch': 'expr-15',
+        '1-local-epoch': 'expr-scalability',
         # '2-local-epochs': 'expr-15' # TODO: AB: Unitl I finish experiment 16, I use experiment 15 for both 1 and 2 local epochs
         }
     }
 }
 
-# visualize_method_per_row(structure_dict)
+visualize_method_per_row(structure_dict)
 
-predictions_dict = {
-    'images_base_dir': '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images',
-    'sites': {
-        'Client 1 Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/PUCPR/PUCPR/60.jpg',
-                    '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/PUCPR/UFPR04/18.jpg',
-                      '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/PUCPR/UFPR05/2.jpg',
-                      '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/PUCPR/CNR-EXT/16.jpg'],
-        'Client 2 Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR04/PUCPR/60.jpg',
-                    '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR04/UFPR04/18.jpg',
-                      '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR04/UFPR05/2.jpg',
-                        '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR04/CNR-EXT/16.jpg'],
-        'Client 3 Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/PUCPR/60.jpg', '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/UFPR04/18.jpg',
-                    '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/UFPR05/2.jpg',
-                      '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/CNR-EXT/16.jpg'],
-        'Client 4 Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR/PUCPR/60.jpg',
-                    '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR/UFPR04/18.jpg',
-                      '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR/UFPR05/2.jpg',
-                        '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR/CNR-EXT/16.jpg'],
-        'Federated Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/PUCPR/PUCPR/60.jpg',
-                       '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR04/UFPR04/18.jpg',
-                         '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/UFPR05/2.jpg',
-                           '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR/CNR-EXT/16.jpg']
-    },
-    'column-names': ['Client 1 Test Image (PUCPR)', 'Client 2 Test Image (UFPR04)', 'Client 3 Test Image (UFPR05)', 'Client 4 Test Image (CNR-EXT)']
-}
-visualize_local_clients_predictions(predictions_dict) # TODO: Implement this function
+# predictions_dict = {
+#     'images_base_dir': '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images',
+#     'sites': {
+#         'Client 1 Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/PUCPR/PUCPR/60.jpg',
+#                     '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/PUCPR/UFPR04/18.jpg',
+#                       '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/PUCPR/UFPR05/2.jpg',
+#                       '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/PUCPR/CNR-EXT/16.jpg'],
+#         'Client 2 Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR04/PUCPR/60.jpg',
+#                     '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR04/UFPR04/18.jpg',
+#                       '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR04/UFPR05/2.jpg',
+#                         '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR04/CNR-EXT/16.jpg'],
+#         'Client 3 Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/PUCPR/60.jpg', '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/UFPR04/18.jpg',
+#                     '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/UFPR05/2.jpg',
+#                       '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/CNR-EXT/16.jpg'],
+#         'Client 4 Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR/PUCPR/60.jpg',
+#                     '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR/UFPR04/18.jpg',
+#                       '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR/UFPR05/2.jpg',
+#                         '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR/CNR-EXT/16.jpg'],
+#         'Federated Model': ['/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/PUCPR/PUCPR/60.jpg',
+#                        '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR04/UFPR04/18.jpg',
+#                          '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/UFPR05/UFPR05/2.jpg',
+#                            '/home/bakr/NVFlare/examples/hello-world/parking-federated-training/saved_debug_images/CNR/CNR-EXT/16.jpg']
+#     },
+#     'column-names': ['Client 1 Test Image (PUCPR)', 'Client 2 Test Image (UFPR04)', 'Client 3 Test Image (UFPR05)', 'Client 4 Test Image (CNR-EXT)']
+# }
+# visualize_local_clients_predictions(predictions_dict) # TODO: Implement this function
 # visualize_clients_per_row(structure_dict)

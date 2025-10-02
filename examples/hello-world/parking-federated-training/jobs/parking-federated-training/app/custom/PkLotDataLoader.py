@@ -5,11 +5,20 @@ from PIL import Image
 from pycocotools.coco import COCO
 
 class PklotDataSet(torch.utils.data.Dataset):
-    def __init__(self, root_path, annotation_path, transforms=None):
+    def __init__(self, root_path, annotation_path, transforms=None, split_between_clients=None):
         self.root_path = root_path
         self.transforms = transforms
         self.coco = COCO(annotation_path)
         self.ids = list(sorted(self.coco.imgs.keys()))
+        if split_between_clients is not None and ("train" in root_path or "train" in annotation_path):
+            # Get the site number from the path ../site-{site_number}/data
+            site_number = int(root_path.split("site-")[1].split("/")[0])
+            site_number = ((site_number - 1) % split_between_clients) + 1
+            # For the first site, the data should be from 0 to max_samples, for the second site, the data should be from max_samples to 2*max_samples, and so on.
+            max_samples = len(self.ids) // split_between_clients 
+            start_index = (site_number - 1) * max_samples
+            end_index = site_number * max_samples
+            self.ids = self.ids[start_index:end_index]# Limit the number of training examples
 
     def __getitem__(self, index):
         # Own coco file
