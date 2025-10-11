@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import torch
-from alex_net_network import AlexnetTS
+from alex_net_network import AlexNet
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
 from torch.utils.data import random_split
@@ -46,7 +46,7 @@ class Gtsrb43Validator(Executor):
         self._validate_task_name = validate_task_name
 
         # Setup the model
-        self.model = AlexnetTS(num_classes)
+        self.model = AlexNet(num_classes)
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.model.to(self.device)
 

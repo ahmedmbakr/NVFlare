@@ -1,0 +1,73 @@
+{
+  "format_version": 2,
+
+  "server": {
+    "heart_beat_timeout": 600
+  },
+  "task_data_filters": [],
+  "task_result_filters": [],
+  "components": [
+    {
+      "id": "persistor",
+      "name": "PTFileModelPersistor",
+      "args": {
+        "source_ckpt_file_full_name": "/home/bakr/NVFlare/examples/hello-world/parking-federated-training/utils/ssdnet_pretrained_model.pth"
+      }
+    },
+    {
+      "id": "model_selector",
+      "name": "IntimeModelSelector",
+      "args": {}
+    },
+    {
+      "id": "model_locator",
+      "name": "PTFileModelLocator",
+      "args": {
+          "pt_persistor_id": "persistor"
+      }
+    },
+    {
+      "id": "json_generator",
+      "name": "ValidationJsonGenerator",
+      "args": {}
+    },
+    {
+      "id": "robust_agg",
+      "path": "median_trimmed_mean_aggregator.MedianTrimmedMeanAggregator",
+      "args": {
+        "mode": "trimmed_mean",    
+        "trim_ratio": 0.3,
+        "num_malicious_clients_simulated": 5
+      }
+    },
+    {
+      "id": "shareable_generator",
+      "name": "FullModelShareableGenerator",
+      "args": {}
+    }
+  ],
+  "workflows": [
+      {
+        "id": "scatter_and_gather",
+        "name": "ScatterAndGather",
+        "args": {
+            "min_clients" : 20,
+            "num_rounds" : 100,
+            "persistor_id": "persistor",
+            "aggregator_id": "robust_agg",
+            "shareable_generator_id": "shareable_generator",
+            "train_task_name": "train"
+        }
+      },
+      {
+        "id": "cross_site_validate",
+        "name": "CrossSiteModelEval",
+        "args": {
+          "model_locator_id": "model_locator",
+          "submit_model_timeout": 600,
+          "validation_timeout": 6000,
+          "cleanup_models": false
+        }
+      }
+  ]
+}

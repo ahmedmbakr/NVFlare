@@ -1,6 +1,7 @@
 import os
 import shutil
 import random
+import sys
 
 def split_data(data_path, num_clients, output_path):
     """
@@ -45,7 +46,10 @@ def split_data(data_path, num_clients, output_path):
 
 if __name__ == "__main__":
     # Split the training data between multiple clients.
-    num_clients = 2
+    # Get the number of clients from the command line arguments.
+    
+    debug = False
+    num_clients = 2 if debug else int(sys.argv[1])
     data_path = "../data/gtsrb/GTSRB/Training"
     # output_path = "../data/gtsrb/GTSRB/Federated_training"
     output_path = "/tmp/nvflare/poc/example_project/prod_00/"

@@ -92,8 +92,6 @@ dependencies:
   - libzlib=1.2.13=hd590300_5
   - llvm-openmp=14.0.6=h9e868ea_0
   - lz4-c=1.9.4=h6a678d5_0
-  - matplotlib=3.8.3=py39hf3d152e_0
-  - matplotlib-base=3.8.3=py39he9076e7_0
   - mkl=2023.1.0=h213fc3f_46344
   - mkl-service=2.4.0=py39h5eee18b_1
   - mkl_fft=1.3.8=py39h5eee18b_0
@@ -115,7 +113,6 @@ dependencies:
   - pandas=2.1.1=py39h1128e8f_0
   - pcre2=10.42=hebb0a14_0
   - pillow=10.2.0=py39h5eee18b_0
-  - pip=23.3.1=py39h06a4308_0
   - ply=3.11=py39h06a4308_0
   - pyqt=5.15.10=py39h6a678d5_0
   - pyqt5-sip=12.13.0=py39h5eee18b_0
@@ -166,6 +163,7 @@ dependencies:
       - bleach==6.1.0
       - cachetools==5.3.2
       - cffi==1.16.0
+      - chardet==5.2.0
       - charset-normalizer==3.3.2
       - click==8.1.7
       - comm==0.2.1
@@ -218,6 +216,7 @@ dependencies:
       - libclang==16.0.6
       - markdown==3.5.2
       - markupsafe==2.1.5
+      - matplotlib==3.9.0
       - matplotlib-inline==0.1.6
       - mistune==3.0.2
       - ml-dtypes==0.2.0
@@ -230,12 +229,14 @@ dependencies:
       - nvflare==2.4.0
       - nvflare-nightly==0+untagged.1512.g85ab0e4
       - oauthlib==3.2.2
+      - opencv-python==4.10.0.84
       - opt-einsum==3.3.0
       - overrides==7.7.0
       - packaging==23.2
       - pandocfilters==1.5.1
       - parso==0.8.3
       - pexpect==4.9.0
+      - pip==24.0
       - platformdirs==4.2.0
       - prometheus-client==0.20.0
       - prompt-toolkit==3.0.43
@@ -245,6 +246,7 @@ dependencies:
       - pure-eval==0.2.2
       - pyasn1==0.5.1
       - pyasn1-modules==0.3.0
+      - pycocotools==2.0.8
       - pycparser==2.21
       - pygments==2.17.2
       - pyhocon==0.3.60
@@ -263,6 +265,7 @@ dependencies:
       - soupsieve==2.5
       - sqlalchemy==1.4.31
       - stack-data==0.6.3
+      - tenseal==0.3.12
       - tensorboard==2.15.2
       - tensorboard-data-server==0.7.2
       - tensorflow==2.15.0.post1

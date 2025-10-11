@@ -1,0 +1,42 @@
+{
+  "format_version": 2,
+  "datasetpath": "../../../data",
+  "num_classes": 3,
+  "batch_size": 6,
+  "num_workers_dl": 4,
+  "valid_detection_threshold": 0.5,
+  "executors": [
+    {
+      "tasks": ["train", "submit_model", "validate"],
+      "executor": {
+        "id": "Executor",
+        "path": "nvflare.app_common.executors.model_learner_executor.ModelLearnerExecutor",
+        "args": {
+            "learner_id": "parkingFL-learner"
+        }
+      }
+    }
+  ],
+  "task_result_filters": [
+  ],
+  "task_data_filters": [
+  ],
+  "components": [
+    {
+      "id": "parkingFL-learner",
+      "path": "parkingFL_trainer.ParkingFL_Trainer",
+      "args": {
+          "data_path": "{datasetpath}",
+          "lr": 0.001,
+          "fedproxloss_mu": 0,
+          "epochs": 1,
+          "num_classes": "{num_classes}",
+          "batch_size": "{batch_size}",
+          "num_workers_dl": "{num_workers_dl}",
+          "valid_detection_threshold": "{valid_detection_threshold}",
+          "model_name": "ssdnet",
+          "split_between_clients": 5
+        }
+    }
+  ]
+}
