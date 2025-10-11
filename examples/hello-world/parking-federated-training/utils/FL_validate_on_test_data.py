@@ -29,8 +29,10 @@ def validate_on_test_data(poc_workspace: str, models_full_paths_list: list, mode
         checkpoint  = torch.load(model_full_path)
         model.load_state_dict(checkpoint [model_dict_key])
         model.to(device)
-        for client_idx in range(num_clients): # We test the model on client_idx data
-             
+        client_idx = 0
+        for _ in range(num_clients): # We test the model on client_idx data
+            if client_idx > 19:
+                 break
             test_coco_full_path = test_coco_full_path_pattern.format(client_idx + 1)
             # Get the directory of the test data
             test_data_dir = os.path.dirname(test_coco_full_path)
@@ -56,6 +58,7 @@ def validate_on_test_data(poc_workspace: str, models_full_paths_list: list, mode
             mAP = parkingFL_Tester.ParkingFL_Tester.validate_model_on_test_data(model, model_owner, outputs_dir, device, test_loader, valid_detection_threshold)
             validation_results[idx, client_idx] = mAP
             print("mAP for model {} on client {} data is: {}".format(model_owner, client_idx + 1, mAP))
+            client_idx += 5 # Because the test data is split between 5 clients. TODO: AB: Make it generic
     # Save the results in a csv file.
     np.savetxt(os.path.join(outputs_dir, "validation_results.csv"), validation_results, delimiter=",")
     print("Final results saved in: ", os.path.join(outputs_dir, "validation_results.csv"))

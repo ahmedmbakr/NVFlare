@@ -5,6 +5,7 @@ from nvflare.app_common.abstract.aggregator import Aggregator
 from nvflare.apis.shareable import Shareable
 from nvflare.apis.dxo import DXO, DataKind, MetaKey, from_shareable
 from nvflare.apis.fl_constant import FLMetaKey
+import random
 
 
 def _to_numpy(x):
@@ -50,7 +51,7 @@ class MedianTrimmedMeanAggregator(Aggregator):
         self.mode = mode
         self.trim_ratio = float(trim_ratio)
         self._buffer: List[Shareable] = []  # stash accepted client results each round
-        self._num_malicious_clients_simulated = num_malicious_clients_simulated
+        self.malicious_simulated_clients_num = random.sample(range(20), num_malicious_clients_simulated)
 
     # Called per client result. Return True to accept into this round’s aggregation buffer.
     # def accept(self, shareable: Shareable, fl_ctx) -> bool:
@@ -141,19 +142,17 @@ class MedianTrimmedMeanAggregator(Aggregator):
 
         # Extract WEIGHT_DIFF dicts
         client_diffs: List[Dict[str, Any]] = []
-        num_malicious_weights_applied = 0
-        for sh in shareables:
+        for idx, sh in enumerate(shareables):
             dxo = from_shareable(sh)
-            if self._num_malicious_clients_simulated > 0 and num_malicious_weights_applied < self._num_malicious_clients_simulated:
-                num_malicious_weights_applied += 1
+            if len(self.malicious_simulated_clients_num) > 0 and idx in self.malicious_simulated_clients_num:
                 # Simulate some malicious clients by uploading random weights
                 if dxo.data_kind == DataKind.WEIGHT_DIFF:
-                    if np.random.rand() < (self._num_malicious_clients_simulated / len(shareables)):
-                        dxo.data = {k: np.random.randn(*np.array(v).shape).astype(np.array(v).dtype) for k, v in dxo.data.items()}
-                        self.log_info(fl_ctx, "[robust_agg] Simulated a malicious client by uploading random WEIGHT_DIFF")
+                    dxo.data = {k: np.random.randn(*np.array(v).shape).astype(np.array(v).dtype) for k, v in dxo.data.items()}
+                    self.log_info(fl_ctx, f"[robust_agg] Simulated a malicious client by uploading random WEIGHT_DIFF for client with index {idx+1}")
             if dxo.data_kind == DataKind.WEIGHT_DIFF:
                 client_diffs.append(dxo.data)
-
+        if len(self.malicious_simulated_clients_num) > 0:
+            self.log_info(fl_ctx, f"[robust_agg] malicious client indices: {self.malicious_simulated_clients_num}")
         if not client_diffs:
             self.log_info(fl_ctx, f"[robust_agg] no client WEIGHT_DIFF found in {len(shareables)} shareables")
             return Shareable()

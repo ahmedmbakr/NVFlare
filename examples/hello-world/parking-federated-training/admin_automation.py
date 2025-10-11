@@ -63,7 +63,7 @@ if __name__ == "__main__":
     ADMIN_NAME = "admin@nvidia.com"
     JOB_NAME = "parking-federated-training"
     POLL_STATUS_INTERVAL_SEC = 2
-    NUM_CLIENTS = 4
+    NUM_CLIENTS = 20
     TRACKERS_FILE_PATH = POC_WORKSPACE + "/site-{0}/{1}/app_site-{0}/outputs/overall_trackers.pkl" # AB: Param0: site number, Param1: job_id
     MODEL_NAME = "ssdnet"
 
@@ -108,5 +108,5 @@ if __name__ == "__main__":
     finally:
         sess.close()
         # Execute shell command
-        os.system("nvflare poc stop")
+        os.system("nvflare poc stop") # If the port is not released, execute the following: "netstat -tulnp | grep 8002", then kill the process with the following command: "kill -9 <PID>"
         print("System is shut down")
