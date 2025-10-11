@@ -51,10 +51,14 @@ if __name__ == "__main__":
     score_threshold = .5
     model_name = "ssdnet" # The model name can be either "resnet" or "ssdnet"
 
+    # Select device
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
     # Load the model
     trainer = normal_trainer.ParkingTrainer(config=config, inference=True, model_name=model_name)
     model = trainer.get_model(config.num_classes, pretrained=True)
     model.load_state_dict(torch.load(model_path))
+    model.to(device)
     model.eval()
 
     # Load the image
@@ -66,15 +70,49 @@ if __name__ == "__main__":
     transforms = get_transforms(model_name)
     import time
     start_time = time.time()
-    transformed_images = [transforms(imgx) for imgx in images_list]
+    transformed_images = [transforms(imgx).to(device) for imgx in images_list]
 
     # Make predictions
     model = model.eval()
+    # Reset and measure CUDA memory around inference
+    if torch.cuda.is_available() and device.type == 'cuda':
+        try:
+            torch.cuda.synchronize(device)
+        except Exception:
+            pass
+        try:
+            torch.cuda.reset_peak_memory_stats(device)
+        except Exception:
+            pass
     outputs = model(transformed_images)
+    if torch.cuda.is_available() and device.type == 'cuda':
+        try:
+            torch.cuda.synchronize(device)
+        except Exception:
+            pass
     end_time = time.time()
     print(f"Inference time: {(end_time - start_time) * 1000:.2f} milliseconds")
-    image_with_boxes = [
-        draw_bounding_boxes(dog_int, boxes=output['boxes'][output['scores'] > score_threshold], width=4)
-        for dog_int, output in zip(images_list, outputs)
-    ]
+    # Report average GPU memory per image (batch peak divided by number of images)
+    if torch.cuda.is_available() and device.type == 'cuda':
+        try:
+            peak_bytes = torch.cuda.max_memory_allocated(device)
+            avg_bytes_per_image = peak_bytes / max(1, len(transformed_images))
+            avg_mb = avg_bytes_per_image / (1024 ** 2)
+            avg_gb = avg_bytes_per_image / (1024 ** 3)
+            print(f"Average GPU memory per image: {avg_mb:.2f} MB ({avg_gb:.2f} GB)")
+        except Exception:
+            pass
+    # Move outputs to CPU for visualization
+    cpu_outputs = []
+    for output in outputs:
+        cpu_outputs.append({
+            'boxes': output['boxes'].detach().cpu(),
+            'scores': output['scores'].detach().cpu(),
+            'labels': output.get('labels', None).detach().cpu() if 'labels' in output else None,
+        })
+    image_with_boxes = []
+    for dog_int, output in zip(images_list, cpu_outputs):
+        mask = output['scores'] > score_threshold
+        boxes = output['boxes'][mask]
+        image_with_boxes.append(draw_bounding_boxes(dog_int, boxes=boxes, width=4))
     show(image_with_boxes)
