@@ -4,9 +4,25 @@ ParkFL is a federated-learning framework for camera‑based parking‑space dete
 
 This repository is a fork of the [NVFlare](https://github.com/NVIDIA/NVFlare) repository with modifications to support parking space detection across multiple sites while preserving data privacy.
 
+
 ## Table of contents
 
-<!-- toc -->
+- [(ParkFL) Federated Learning for Parking Space Detection](#parkfl-federated-learning-for-parking-space-detection)
+  - [Table of contents](#table-of-contents)
+  - [Feature overview by branch](#feature-overview-by-branch)
+    - [How to switch branches](#how-to-switch-branches)
+  - [Repository structure](#repository-structure)
+  - [Environment setup](#environment-setup)
+  - [Running the project](#running-the-project)
+    - [Simulator mode](#simulator-mode)
+    - [Proof‑of‑Concept (PoC) mode](#proofofconcept-poc-mode)
+  - [Adjustable parameters](#adjustable-parameters)
+  - [Experiment‑specific tips](#experimentspecific-tips)
+  - [Extending ParkFL](#extending-parkfl)
+    - [Files to add](#files-to-add)
+    - [Files to modify](#files-to-modify)
+  - [Support](#support)
+  - [License](#license)
 
 
 ## Feature overview by branch
