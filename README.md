@@ -4,6 +4,11 @@ ParkFL is a federated-learning framework for camera‑based parking‑space dete
 
 This repository is a fork of the [NVFlare](https://github.com/NVIDIA/NVFlare) repository with modifications to support parking space detection across multiple sites while preserving data privacy.
 
+## Table of contents
+
+<!-- toc -->
+
+
 ## Feature overview by branch
 
 | Branch                                            | Purpose/Features                                                                                                                                                                                                                                                                       | Notes                                                                                                                                                                                                                            |
@@ -14,7 +19,7 @@ This repository is a fork of the [NVFlare](https://github.com/NVIDIA/NVFlare) re
 | **scalability-expr**                              | Evaluates the **scalability** of ParkFL.  Each of the four datasets is split into five non‑overlapping subsets to create **20 clients**.  Using SCAFFOLD, the system achieves ≈97.18 % mAP with 20 clients, only 0.27 % lower than the 4‑client baseline.                              | Edit the number of clients (`NUM_CLIENTS=20`) in the scripts and update data paths accordingly.                                                                                                                                  |
 | **FedOpt**                                        | Implements the **FedOpt** (adaptive server optimization) algorithm using an SGD/Adam‑style update on the server.  Includes a detailed example in `examples/hello-world/parking-federated-training` demonstrating PoC and simulator modes.                                              | Use this branch to study server‑side optimization.  Modify optimizer hyper‑parameters (`lr`, `momentum`, `β₁`, `β₂`) and learning‑rate scheduler in the server configuration.                                                    |
 | **scaffold**                                      | Provides a stand‑alone implementation of the **SCAFFOLD** algorithm.  SCAFFOLD reduces client drift via control variates and performs weighted aggregation; it shows stable accuracy under heterogeneous data.                                                                         | Use this branch to benchmark SCAFFOLD without the additional experiments.                                                                                                                                                        |
-### How to swith branches
+### How to switch branches
 
 ```bash
 git checkout <branch_name>
