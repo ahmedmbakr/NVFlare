@@ -38,7 +38,7 @@
         "name": "Scaffold",
         "args": {
             "min_clients" : 4,
-            "num_rounds" : 100,
+            "num_rounds" : 50,
             "persistor_id": "persistor"
         }
       },

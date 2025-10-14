@@ -5,6 +5,9 @@
   "batch_size": 6,
   "num_workers_dl": 4,
   "valid_detection_threshold": 0.5,
+  "SIGMA0": 0.1,
+  "GAUSS_PERCENTILE": 95,
+  "CLIP_NORM": 0.0,
   "executors": [
     {
       "tasks": ["train", "submit_model", "validate"],
@@ -18,6 +21,18 @@
     }
   ],
   "task_result_filters": [
+    {
+      "tasks": ["train"],
+      "filters": [
+        {
+          "path": "gaussian_privacy.GaussianPrivacy",
+          "args": {
+            "sigma0": "{SIGMA0}",
+            "max_percentile": "{GAUSS_PERCENTILE}"
+        }
+        }
+      ]
+    }
   ],
   "task_data_filters": [
   ],
@@ -29,7 +44,7 @@
           "data_path": "{datasetpath}",
           "lr": 0.001,
           "fedproxloss_mu": 0,
-          "epochs": 1,
+          "epochs": 2,
           "num_classes": "{num_classes}",
           "batch_size": "{batch_size}",
           "num_workers_dl": "{num_workers_dl}",
