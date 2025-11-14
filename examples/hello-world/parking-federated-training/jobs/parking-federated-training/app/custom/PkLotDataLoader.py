@@ -14,7 +14,13 @@ class PklotDataSet(torch.utils.data.Dataset):
         self.coco = COCO(annotation_path)
         self.ids = list(sorted(self.coco.imgs.keys()))
         if max_samples is not None and ("train" in root_path or "train" in annotation_path):
+            original_size = len(self.ids)
             self.ids = self.ids[:max_samples] # Limit the number of training examples
+            # Apply albumentation to increase the number of training samples to the original size
+            if self.albumentation_transformation is not None:
+                extra_needed = original_size - len(self.ids)
+                extra_ids = random.choices(self.ids, k=extra_needed)
+                self.ids.extend(extra_ids)
 
     def __getitem__(self, index):
         # Own coco file

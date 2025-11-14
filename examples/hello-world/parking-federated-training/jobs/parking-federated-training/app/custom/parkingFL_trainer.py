@@ -198,7 +198,7 @@ class ParkingFL_Trainer(ModelLearner):
             transforms = alexNetNetwork.get_transform()
 
         self._train_dataset = PklotDataSet(
-            root_path=train_data_dir, annotation_path=train_coco, transforms=transforms, albumentation_transformation=self.albummentation_transformations, max_samples=1000 # Limit the number of training samples
+            root_path=train_data_dir, annotation_path=train_coco, transforms=transforms, albumentation_transformation=self.albummentation_transformations, max_samples=210 # Limit the number of training samples (210 is 20x less than the full training data of 4200 samples)
         )
 
         self._val_dataset = PklotDataSet(
